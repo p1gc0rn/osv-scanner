@@ -37,7 +37,7 @@ def parse_functions_from_file(function_name, file_path):
                     else:
                         imported_modules[module_name].append(alias.name)
     
-    print(imported_modules)
+    #print(imported_modules)
     # Look into functions and see if the imports are called.
     for node in tree.body:
         if isinstance(node, ast.FunctionDef): 

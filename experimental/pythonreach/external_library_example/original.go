@@ -51,8 +51,8 @@ var moduleInfos []*ModuleInfo
 
 func init() {
 	flag.StringVar(&directory, "directory", "directory", "directory to scan")
-	flag.StringVar(&pythonFile, "python_file", "example.py", "python file to scan")
-	flag.StringVar(&requirementsFile, "requirements_file", "requirements.txt", "requirements.txt to read")
+	flag.StringVar(&pythonFile, "python_file", "example/main.py", "python file to scan")
+	flag.StringVar(&requirementsFile, "requirements_file", "example/requirements.txt", "requirements.txt to read")
 }
 
 func moduleFunctionFinder(file *os.File) []*ModuleInfo {
@@ -74,7 +74,6 @@ func moduleFunctionFinder(file *os.File) []*ModuleInfo {
 					funcInfos = append(funcInfos, &FunctionInfo{Name: f})
 					moduleInfos = append(moduleInfos, &ModuleInfo{Name: f})
 				}
-
 				moduleInfos = append(moduleInfos, &ModuleInfo{Name: match[1], Functions: funcInfos})
 			}
 		}
@@ -83,6 +82,7 @@ func moduleFunctionFinder(file *os.File) []*ModuleInfo {
 			s := fmt.Sprintf(`%s\.([a-zA-Z_][a-zA-Z_.]*)`, moduleInfos[module].Name)
 			re := regexp.MustCompile(s)
 			matches := re.FindStringSubmatch(text)
+
 			// The function line is found
 			if len(matches) > 0 {
 				moduleInfos[module].Functions = append(moduleInfos[module].Functions, &FunctionInfo{Name: matches[1]})
@@ -308,16 +308,16 @@ func findFolder(root, folderName string) (string, error) {
 // check if the function contains depedenencies
 func getFilesInDirectory(moduleInfo *ModuleInfo) error {
 	// Find the directory name of module
-	moduleFolder, err := findFolder("/usr/local/google/home/pnyl/osv-scanner/experimental/pythonreach/original", moduleInfo.Name)
-	if err != nil {
-		return err
-	}
+	// moduleFolder, err := findFolder("/usr/local/google/home/pnyl/osv-scanner/experimental/pythonreach/library_example/example/custom_module", moduleInfo.Name)
+	// if err != nil {
+	// 	return fmt.Errorf("module folder %s not found", moduleInfo.Name)
+	// }
 
 	// Traverse the directories of the module
-	root := fmt.Sprintf("/usr/local/google/home/pnyl/osv-scanner/experimental/pythonreach/original/%s", moduleFolder)
-	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	root := "/usr/local/google/home/pnyl/dev/osv-scanner/experimental/pythonreach/external_library_example/example/custom_module"
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return err
+			return fmt.Errorf("module folder %s not found", moduleInfo.Name)
 		}
 		if !info.IsDir() {
 			if strings.HasSuffix(path, "py") {
@@ -368,25 +368,9 @@ func main() {
 	moduleMap = collectVersion(requirementsFile, moduleMap)
 
 	// 3. get dependencies & their version from PyPI
-	getPackageDependencies(moduleMap)
-	// for _, value := range moduleMap {
-	// 	fmt.Printf("Module: %s\n", value.Name)
-	// 	for _, function := range value.Functions {
-	// 		fmt.Printf("Function: %s\n", function)
-	// 	}
-	// 	fmt.Printf("Version: %s\n", value.Version)
-	// 	for _, dep := range value.Dependencies {
-	// 		fmt.Printf("Dependency: %s\n", dep)
-	// 	}
-	// }
-
-	// 4. get the source of the module and their dependencies using pypi-simple
-	for _, module := range moduleMap {
-		//fmt.Printf("Module: %s\n", module.Name)
-		err = retrievePackageSource(module)
-		if err != nil {
-			log.Printf("Error: %v\n", err)
-		}
+	//getPackageDependencies(moduleMap)
+	for m := range moduleMap {
+		moduleMap[m].Dependencies = append(moduleMap[m].Dependencies, &ModuleInfo{Name: "requests", Version: ModuleVersion{Single: "2.31.0"}})
 	}
 
 	// 5. traverse the directory and find the paths of functions used in the imported modules
@@ -404,7 +388,7 @@ func main() {
 		}
 		fmt.Printf("Version: %s\n", value.Version)
 		for _, dep := range value.Dependencies {
-			fmt.Printf("Dependency: %s\n", dep)
+			fmt.Printf("Dependency: %s\n", dep.Name)
 		}
 	}
 
@@ -415,7 +399,7 @@ func main() {
 			for _, function := range module.Functions {
 				if len(function.Paths) > 0 {
 					cmd := exec.Command("python3", "function_parser.py", function.Name, strings.Join(function.Paths[:], ","))
-					fmt.Println(cmd)
+					//fmt.Println(cmd)
 					output, err := cmd.Output()
 					if err != nil {
 						fmt.Println("Error:", err)
