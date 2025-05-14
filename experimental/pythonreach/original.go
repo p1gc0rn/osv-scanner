@@ -28,16 +28,21 @@ type FunctionInfo struct {
 }
 
 type ModuleInfo struct {
-	Name         string
-	Version      ModuleVersion
-	Functions    []*FunctionInfo
-	Dependencies []*ModuleInfo
+	Name          string //original module name
+	Alias         string // alias i.e. import math as m
+	Version       ModuleVersion
+	Functions     []*FunctionInfo
+	ImportedItems map[string]string // map[alias]original_name
+	Dependencies  []*ModuleInfo
 }
 
 var (
 	directory        string
 	pythonFile       string
 	requirementsFile string
+	importRegex      = regexp.MustCompile(`^\s*import\s+([a-zA-Z0-9_.]+)(?:\s+as\s+([a-zA-Z0-9_]+))?`)
+	fromImportRegex  = regexp.MustCompile(`^\s*from\s+([a-zA-Z0-9_.]+)\s+import\s+(.+)`)
+	importItemRegex  = regexp.MustCompile(`([a-zA-Z0-9_.*]+)(?:\s+as\s+([a-zA-Z0-9_]+))?`)
 )
 
 type PyPIResponse struct {
@@ -55,46 +60,108 @@ func init() {
 	flag.StringVar(&requirementsFile, "requirements_file", "requirements.txt", "requirements.txt to read")
 }
 
-func moduleFunctionFinder(file *os.File) []*ModuleInfo {
+func moduleFinder(file *os.File) ([]*ModuleInfo, error) {
 	scanner := bufio.NewScanner(file)
+	moduleMap := make(map[string]*ModuleInfo)
+	var moduleInfos []*ModuleInfo
 	for scanner.Scan() {
-		text := scanner.Text()
-		// Find import lines
-		if strings.HasPrefix(text, "import") {
-			parts := strings.Split(scanner.Text(), " ")
-			moduleInfos = append(moduleInfos, &ModuleInfo{Name: parts[1]})
+		text := strings.TrimSpace(scanner.Text())
+		// Skip empty lines and comments
+		if text == "" || strings.HasPrefix(text, "#") {
 			continue
-		} else if strings.HasPrefix(text, "from") {
-			regex := regexp.MustCompile(`^from\s+([a-zA-Z0-9_.]+)\s+import\s+([a-zA-Z0-9_*]+(?:,\s*[a-zA-Z0-9_*]+)*)$`)
-			match := regex.FindStringSubmatch(text)
-			functions := strings.Split(match[2], ", ")
-			funcInfos := []*FunctionInfo{}
-			if len(match) > 0 {
-				for _, f := range functions {
-					funcInfos = append(funcInfos, &FunctionInfo{Name: f})
-					moduleInfos = append(moduleInfos, &ModuleInfo{Name: f})
+		}
+
+		// Identify import statements
+		if match := importRegex.FindStringSubmatch(text); match != nil {
+			moduleName := match[1]
+			alias := match[2]
+			key := moduleName
+			if alias != "" {
+				key = alias
+			}
+
+			if _, exist := moduleMap[key]; !exist {
+				moduleInfo := &ModuleInfo{Name: moduleName, Alias: alias}
+				moduleMap[key] = moduleInfo
+				moduleInfos = append(moduleInfos, moduleInfo)
+			}
+		} else if match := fromImportRegex.FindStringSubmatch(text); match != nil {
+			baseModuleName := match[1]
+			items := match[2]
+
+			baseMInfo, exist := moduleMap[baseModuleName]
+			if !exist {
+				baseMInfo = &ModuleInfo{Name: baseModuleName, ImportedItems: make(map[string]string)}
+				moduleMap[baseModuleName] = baseMInfo
+				moduleInfos = append(moduleInfos, baseMInfo)
+			}
+
+			if strings.TrimSpace(items) == "*" {
+				baseMInfo.ImportedItems["*"] = "*"
+			} else {
+				items := strings.Split(items, ",")
+				for _, item := range items {
+					item = strings.TrimSpace(item)
+					if itemMatch := importItemRegex.FindStringSubmatch(item); itemMatch != nil {
+						originalItemName := itemMatch[1]
+						itemAlias := itemMatch[2]
+						nameOfItemInFile := originalItemName
+						if itemAlias != "" {
+							nameOfItemInFile = itemAlias
+						}
+						baseMInfo.ImportedItems[nameOfItemInFile] = originalItemName
+					}
 				}
-
-				moduleInfos = append(moduleInfos, &ModuleInfo{Name: match[1], Functions: funcInfos})
-			}
-		}
-
-		for module := range moduleInfos {
-			s := fmt.Sprintf(`%s\.([a-zA-Z_][a-zA-Z_.]*)`, moduleInfos[module].Name)
-			re := regexp.MustCompile(s)
-			matches := re.FindStringSubmatch(text)
-			// The function line is found
-			if len(matches) > 0 {
-				moduleInfos[module].Functions = append(moduleInfos[module].Functions, &FunctionInfo{Name: matches[1]})
 			}
 		}
 	}
-
 	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("error scanning file: %w", err)
 	}
 
-	return moduleInfos
+	// Find functions used
+	if _, err := file.Seek(0, 0); err != nil {
+		return nil, fmt.Errorf("error seeking file: %w", err)
+	}
+
+	scanner = bufio.NewScanner(file)
+	for scanner.Scan() {
+		text := strings.TrimSpace(scanner.Text())
+		// Skip empty lines and comments
+		if text == "" || strings.HasPrefix(text, "#") || strings.Contains(text, "import") {
+			continue
+		}
+
+		for i, moduleInfo := range moduleInfos {
+			if moduleInfo.Alias != "" {
+				s := fmt.Sprintf(`%s\.([a-zA-Z_][a-zA-Z_.]*)`, regexp.QuoteMeta(moduleInfo.Alias))
+				re := regexp.MustCompile(s)
+				matches := re.FindStringSubmatch(text)
+				if len(matches) > 0 {
+					moduleInfo.Functions = append(moduleInfo.Functions, &FunctionInfo{Name: matches[1]})
+				}
+			}
+
+			imported := moduleInfo.ImportedItems
+			if len(imported) == 0 {
+				continue
+			}
+			for key := range imported {
+				s := fmt.Sprintf(`\b%s\b`, regexp.QuoteMeta(key))
+				re := regexp.MustCompile(s)
+				matches := re.FindStringSubmatch(text)
+				if len(matches) > 0 {
+					moduleInfos[i].Functions = append(moduleInfos[i].Functions, &FunctionInfo{Name: matches[0]})
+				}
+			}
+		}
+
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error finding function: %w", err)
+	}
+
+	return moduleInfos, nil
 }
 
 func collectVersion(file *os.File, moduleInfos []*ModuleInfo) []*ModuleInfo {
@@ -133,7 +200,6 @@ func collectVersion(file *os.File, moduleInfos []*ModuleInfo) []*ModuleInfo {
 func getPackageDependencies(moduleInfos []*ModuleInfo) ([]*ModuleInfo, error) {
 	for _, moduleInfo := range moduleInfos {
 		url := fmt.Sprintf("https://pypi.org/pypi/%s/%s/json", moduleInfo.Name, moduleInfo.Version.Single)
-
 		resp, err := http.Get(url)
 		if err != nil {
 			return nil, err
@@ -156,37 +222,28 @@ func getPackageDependencies(moduleInfos []*ModuleInfo) ([]*ModuleInfo, error) {
 		}
 
 		requiresDist := pypiResponse.Info.RequiresDist
+		fmt.Printf("Requires Dist: %v\n", requiresDist)
 		for _, dep := range requiresDist {
-			parts := strings.Split(dep, " (")
-			m := &ModuleInfo{Name: parts[0]}
-
+			//parts := strings.Split(dep, " (")
+			m := &ModuleInfo{}
 			// Get the version numbers
-			re := regexp.MustCompile(`([<>]=?\d*\.?\d+)`) // Capturing group for symbols and numbers
+			re := regexp.MustCompile(`([a-zA-Z_][a-zA-Z_.]*)([<>]=?\d*\.?\d+)`) // Capturing group for symbols and numbers
 			matches := re.FindAllStringSubmatch(dep, -1)
 			for _, match := range matches {
-
+				m = &ModuleInfo{Name: strings.TrimSpace(match[0])}
 				if strings.HasPrefix(match[1], ">=") {
-
 					m.Version.UpperBound = strings.TrimLeft(match[1], ">=")
-
 					continue
 
 				} else if strings.HasPrefix(match[1], ">") {
-
 					m.Version.UpperBound = strings.TrimLeft(match[1], ">")
-
 					continue
 
 				} else if strings.HasPrefix(match[1], "<=") {
-
 					m.Version.LowerBound = strings.TrimLeft(match[1], "<=")
-
 					continue
-
 				} else if strings.HasPrefix(match[1], "<") {
-
 					m.Version.LowerBound = strings.TrimLeft(match[1], "<")
-
 					continue
 
 				}
@@ -203,7 +260,7 @@ func downloadPackageSource(downloadLink string) (string, error) {
 	filename := filepath.Base(downloadLink)
 	fmt.Printf("Filename: %s\n", filename)
 	// Create a temporary file
-	tempFile, err := os.CreateTemp("/usr/local/google/home/pnyl/osv-scanner/experimental/pythonreach/original", filename)
+	tempFile, err := os.CreateTemp("/usr/local/google/home/pnyl/dev/osv-scanner/experimental/pythonreach", filename)
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
@@ -308,13 +365,13 @@ func findFolder(root, folderName string) (string, error) {
 // check if the function contains depedenencies
 func getFilesInDirectory(moduleInfo *ModuleInfo) error {
 	// Find the directory name of module
-	moduleFolder, err := findFolder("/usr/local/google/home/pnyl/osv-scanner/experimental/pythonreach/original", moduleInfo.Name)
+	moduleFolder, err := findFolder("/usr/local/google/home/pnyl/dev/osv-scanner/experimental/pythonreach", moduleInfo.Name)
 	if err != nil {
 		return err
 	}
 
 	// Traverse the directories of the module
-	root := fmt.Sprintf("/usr/local/google/home/pnyl/osv-scanner/experimental/pythonreach/original/%s", moduleFolder)
+	root := fmt.Sprintf("/usr/local/google/home/pnyl/dev/osv-scanner/experimental/pythonreach/%s", moduleFolder)
 	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -347,6 +404,29 @@ func getFilesInDirectory(moduleInfo *ModuleInfo) error {
 	return nil
 }
 
+func old_main() {
+	flag.Parse()
+
+	// 1. read python file
+	pythonFile, err := os.Open(pythonFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pythonFile.Close()
+
+	moduleMap, _ := moduleFinder(pythonFile)
+	for _, value := range moduleMap {
+		fmt.Printf("Module: %s\n", value.Name)
+		fmt.Printf("Alias: %s\n", value.Alias)
+		//fmt.Printf("importeditems: %v\n", value.ImportedItems)
+		for key, item := range value.ImportedItems {
+			fmt.Printf("Imported Item key: %s, item: %s\n", key, item)
+		}
+		for _, function := range value.Functions {
+			fmt.Printf("Function: %s\n", function.Name)
+		}
+	}
+}
 func main() {
 	flag.Parse()
 
@@ -357,7 +437,7 @@ func main() {
 	}
 	defer pythonFile.Close()
 
-	moduleMap := moduleFunctionFinder(pythonFile)
+	moduleMap, _ := moduleFinder(pythonFile)
 
 	// 2. read requirements.txt file using the librariy in https://github.com/google/osv-scalibr/blob/main/extractor/filesystem/language/python/requirements/requirements.go
 	requirementsFile, err := os.Open(requirementsFile)
@@ -382,6 +462,9 @@ func main() {
 
 	// 4. get the source of the module and their dependencies using pypi-simple
 	for _, module := range moduleMap {
+		if module.Version.Single == "" {
+			continue
+		}
 		//fmt.Printf("Module: %s\n", module.Name)
 		err = retrievePackageSource(module)
 		if err != nil {
@@ -404,7 +487,7 @@ func main() {
 		}
 		fmt.Printf("Version: %s\n", value.Version)
 		for _, dep := range value.Dependencies {
-			fmt.Printf("Dependency: %s\n", dep)
+			fmt.Printf("Dependency: %s\n", dep.Name)
 		}
 	}
 
@@ -415,19 +498,24 @@ func main() {
 			for _, function := range module.Functions {
 				if len(function.Paths) > 0 {
 					cmd := exec.Command("python3", "function_parser.py", function.Name, strings.Join(function.Paths[:], ","))
-					fmt.Println(cmd)
+					fmt.Printf("Looking for function: %s\n", function.Name)
+					//fmt.Println(cmd)
 					output, err := cmd.Output()
 					if err != nil {
 						fmt.Println("Error:", err)
 						return
 					}
-
 					fmt.Println("Python script output:")
-					fmt.Println(string(output))
+					for _, line := range strings.Split(string(output), "\n") {
+						if strings.Contains(line, "Found:") {
+							fmt.Println(line)
+						} else if strings.Contains(line, "Not Found:") {
+							fmt.Println(line)
+						}
+					}
 				}
 			}
 		}
 	}
 	// Compare with the dependency in the module info struct
-
 }

@@ -1,12 +1,1 @@
-# Example requirements.txt file
-
-# Specify the version of Python
-python_version >= 3.8
-
-# List of dependencies
-
-numpy>=1.21.2
-
-
-# Additional dependencies
-Flask==3.1.0
+Flask==3.0.3
