@@ -1,5 +1,6 @@
 import ast
 import sys
+import json
 
 YELLOW = "\033[33m"
 GREEN = "\033[32m"
@@ -54,27 +55,27 @@ def parse_functions_from_file(function_name, file_path):
                                 if isinstance(current_node.func.value, ast.Name):
                                     if current_node.func.value.id in imported_modules:
                                         if used_modules_functions.get(current_node.func.value.id) is None:
-                                            used_modules_functions[current_node.func.value.id] = {f"{current_node.func.value.id}.{current_node.func.attr}"}
+                                            used_modules_functions[current_node.func.value.id] = [f"{current_node.func.value.id}.{current_node.func.attr}"]
                                         else:
-                                            used_modules_functions[current_node.func.value.id].add(f"{current_node.func.value.id}.{current_node.func.attr}")
+                                            used_modules_functions[current_node.func.value.id].append(f"{current_node.func.value.id}.{current_node.func.attr}")
                                         #used_functions.add(f"{current_node.func.value.id}.{current_node.func.attr}")
                                     else:
                                         for imported_module in imported_modules:
                                             for imported_function in imported_modules[imported_module]:
                                                 if current_node.func.value.id== imported_function:
                                                     if used_modules_functions.get(imported_module) is None:
-                                                        used_modules_functions[imported_module] = {current_node.func.value.id}
+                                                        used_modules_functions[imported_module] = [current_node.func.value.id]
                                                     else:
-                                                        used_modules_functions[imported_module].add(current_node.func.value.id)
+                                                        used_modules_functions[imported_module].append(current_node.func.value.id)
                                                     #used_functions.add(current_node.func.value.id)
                             else: 
                                 for imported_module in imported_modules:
                                     for imported_function in imported_modules[imported_module]:
                                         if current_node.func.id == imported_function:
                                             if used_modules_functions.get(imported_module) is None:
-                                                used_modules_functions[imported_module] = {current_node.func.id}
+                                                used_modules_functions[imported_module] = [current_node.func.id]
                                             else:
-                                                used_modules_functions[imported_module].add(current_node.func.id)
+                                                used_modules_functions[imported_module].append(current_node.func.id)
                                             
     return used_modules_functions
 
@@ -85,11 +86,14 @@ if __name__ == "__main__":
         paths = sys.argv[2].split(",")
         found = False
         for path in paths: 
-
             function_data = parse_functions_from_file(function_name, path)
             if len(function_data) > 0:
-                print(">>>>"+path)
-                print(f"Found: {GREEN}{function_data}{RESET}")
+                new_function_data = {}
+                # Traverese the dictionary 
+                for key in function_data.keys():
+                    new_function_data["imported_library"] = key
+                    new_function_data["used_module"] = function_data[key]
+                    print("Found:"+json.dumps(new_function_data))
                 found = True
                 break
         if found != True:

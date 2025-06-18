@@ -52,7 +52,10 @@ type PyPIResponse struct {
 	} `json:"info"`
 }
 
-var moduleInfos []*ModuleInfo
+type Response struct {
+	ImportedLibrary string   `json:"imported_library"`
+	UsedModule      []string `json:"used_module"`
+}
 
 func init() {
 	flag.StringVar(&directory, "directory", "directory", "directory to scan")
@@ -199,26 +202,32 @@ func collectVersion(file *os.File, moduleInfos []*ModuleInfo) []*ModuleInfo {
 
 func getPackageDependencies(moduleInfos []*ModuleInfo) ([]*ModuleInfo, error) {
 	for _, moduleInfo := range moduleInfos {
+		if moduleInfo.Version.Single == "" {
+			continue // Skip modules without a version
+		}
 		url := fmt.Sprintf("https://pypi.org/pypi/%s/%s/json", moduleInfo.Name, moduleInfo.Version.Single)
 		resp, err := http.Get(url)
 		if err != nil {
-			return nil, err
+			log.Printf("Error fetching package info: %v\n", err)
+			continue
 		}
 		defer resp.Body.Close()
-
 		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("HTTP request failed with status code: %d", resp.StatusCode)
+			log.Printf("HTTP request failed with status code: %d\n", resp.StatusCode)
+			continue
 		}
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return nil, err
+			log.Printf("failed to read response body: %v\n", err)
+			continue
 		}
 
 		var pypiResponse PyPIResponse
 		err = json.Unmarshal(body, &pypiResponse)
 		if err != nil {
-			return nil, err
+			log.Printf("failed to unmarshal JSON: %v\n", err)
+			continue
 		}
 
 		requiresDist := pypiResponse.Info.RequiresDist
@@ -230,23 +239,24 @@ func getPackageDependencies(moduleInfos []*ModuleInfo) ([]*ModuleInfo, error) {
 			re := regexp.MustCompile(`([a-zA-Z_][a-zA-Z_.]*)([<>]=?\d*\.?\d+)`) // Capturing group for symbols and numbers
 			matches := re.FindAllStringSubmatch(dep, -1)
 			for _, match := range matches {
-				m = &ModuleInfo{Name: strings.TrimSpace(match[0])}
-				if strings.HasPrefix(match[1], ">=") {
-					m.Version.UpperBound = strings.TrimLeft(match[1], ">=")
-					continue
+				fmt.Printf("Match: %v\n", match)
+				m = &ModuleInfo{Name: strings.TrimSpace(match[1])}
+				// if strings.HasPrefix(match[1], ">=") {
+				// 	m.Version.UpperBound = strings.TrimLeft(match[1], ">=")
+				// 	continue
 
-				} else if strings.HasPrefix(match[1], ">") {
-					m.Version.UpperBound = strings.TrimLeft(match[1], ">")
-					continue
+				// } else if strings.HasPrefix(match[1], ">") {
+				// 	m.Version.UpperBound = strings.TrimLeft(match[1], ">")
+				// 	continue
 
-				} else if strings.HasPrefix(match[1], "<=") {
-					m.Version.LowerBound = strings.TrimLeft(match[1], "<=")
-					continue
-				} else if strings.HasPrefix(match[1], "<") {
-					m.Version.LowerBound = strings.TrimLeft(match[1], "<")
-					continue
+				// } else if strings.HasPrefix(match[1], "<=") {
+				// 	m.Version.LowerBound = strings.TrimLeft(match[1], "<=")
+				// 	continue
+				// } else if strings.HasPrefix(match[1], "<") {
+				// 	m.Version.LowerBound = strings.TrimLeft(match[1], "<")
+				// 	continue
 
-				}
+				// }
 
 			}
 			moduleInfo.Dependencies = append(moduleInfo.Dependencies, m)
@@ -430,7 +440,7 @@ func old_main() {
 func main() {
 	flag.Parse()
 
-	// 1. read python file
+	// 2.1 read python file
 	pythonFile, err := os.Open(pythonFile)
 	if err != nil {
 		log.Fatal(err)
@@ -439,7 +449,7 @@ func main() {
 
 	moduleMap, _ := moduleFinder(pythonFile)
 
-	// 2. read requirements.txt file using the librariy in https://github.com/google/osv-scalibr/blob/main/extractor/filesystem/language/python/requirements/requirements.go
+	// 2.2 read requirements.txt file using the librariy in https://github.com/google/osv-scalibr/blob/main/extractor/filesystem/language/python/requirements/requirements.go
 	requirementsFile, err := os.Open(requirementsFile)
 	if err != nil {
 		log.Fatal(err)
@@ -447,20 +457,18 @@ func main() {
 	defer requirementsFile.Close()
 	moduleMap = collectVersion(requirementsFile, moduleMap)
 
-	// 3. get dependencies & their version from PyPI
+	for _, module := range moduleMap {
+		fmt.Printf("Module: %s\n", module.Name)
+		fmt.Printf("Version: %s\n", module.Version.Single)
+		fmt.Printf("Dependencies:\n")
+		for _, dep := range module.Dependencies {
+			fmt.Printf("Dependency Name: %s\n", dep.Name)
+		}
+	}
+	// 2.3. get dependencies & their version from PyPI
 	getPackageDependencies(moduleMap)
-	// for _, value := range moduleMap {
-	// 	fmt.Printf("Module: %s\n", value.Name)
-	// 	for _, function := range value.Functions {
-	// 		fmt.Printf("Function: %s\n", function)
-	// 	}
-	// 	fmt.Printf("Version: %s\n", value.Version)
-	// 	for _, dep := range value.Dependencies {
-	// 		fmt.Printf("Dependency: %s\n", dep)
-	// 	}
-	// }
 
-	// 4. get the source of the module and their dependencies using pypi-simple
+	// 3. get the source of the module and their dependencies using pypi-simple
 	for _, module := range moduleMap {
 		if module.Version.Single == "" {
 			continue
@@ -472,50 +480,78 @@ func main() {
 		}
 	}
 
-	// 5. traverse the directory and find the paths of functions used in the imported modules
+	// 4. traverse the directory and find the paths of functions used in the imported modules
 	for _, module := range moduleMap {
 		err := getFilesInDirectory(module)
 		if err != nil {
 			log.Printf("Error: %v\n", err)
 		}
 	}
-	for _, value := range moduleMap {
-		fmt.Printf("Module: %s\n", value.Name)
-		for _, function := range value.Functions {
-			fmt.Printf("Function Name: %s\n", function.Name)
-			fmt.Printf("Function Paths: %s\n", function.Paths)
-		}
-		fmt.Printf("Version: %s\n", value.Version)
-		for _, dep := range value.Dependencies {
-			fmt.Printf("Dependency: %s\n", dep.Name)
-		}
-	}
+	// for _, value := range moduleMap {
+	// 	fmt.Printf("Module: %s\n", value.Name)
+	// 	for _, function := range value.Functions {
+	// 		fmt.Printf("Function Name: %s\n", function.Name)
+	// 		fmt.Printf("Function Paths: %s\n", function.Paths)
+	// 	}
+	// 	fmt.Printf("Version: %s\n", value.Version)
+	// 	for _, dep := range value.Dependencies {
+	// 		fmt.Printf("Dependency: %s\n", dep.Name)
+	// 	}
+	// }
 
-	// 5b) Call python file with the paths are the arguments to get the dependencies called in those functions
+	// 4. Call python file with the paths are the arguments to get the dependencies called in those functions
 	// We capture the ouptut
+	var responses []*Response
 	for _, module := range moduleMap {
 		if len(module.Functions) > 0 {
 			for _, function := range module.Functions {
 				if len(function.Paths) > 0 {
 					cmd := exec.Command("python3", "function_parser.py", function.Name, strings.Join(function.Paths[:], ","))
 					fmt.Printf("Looking for function: %s\n", function.Name)
-					//fmt.Println(cmd)
 					output, err := cmd.Output()
 					if err != nil {
 						fmt.Println("Error:", err)
 						return
+
 					}
-					fmt.Println("Python script output:")
 					for _, line := range strings.Split(string(output), "\n") {
 						if strings.Contains(line, "Found:") {
-							fmt.Println(line)
+							split := strings.SplitAfter(line, "Found:")
+							var response Response
+							err = json.Unmarshal([]byte(split[1]), &response)
+
+							if err != nil {
+								fmt.Printf("Error unmarshaling JSON: %v\n", err)
+								return
+							}
+							responses = append(responses, &response)
 						} else if strings.Contains(line, "Not Found:") {
 							fmt.Println(line)
 						}
 					}
+
 				}
 			}
 		}
 	}
-	// Compare with the dependency in the module info struct
+	// 5. Compare with the dependency in the module info struct
+	for _, module := range moduleMap {
+		fmt.Printf("Module: %s\n", module.Name)
+		fmt.Printf("Version: %s\n", module.Version.Single)
+		fmt.Printf("Dependencies:\n")
+		for _, dep := range module.Dependencies {
+			fmt.Printf("Dependency Name: %s\n", dep.Name)
+		}
+	}
+	for _, response := range responses {
+		fmt.Printf("Imported Library: %s\n", response.ImportedLibrary)
+		fmt.Printf("Used Module: %v\n", response.UsedModule)
+		for _, module := range moduleMap {
+			for _, dep := range module.Dependencies {
+				if strings.EqualFold(dep.Name, response.ImportedLibrary) {
+					fmt.Printf("Module %s is used in the function\n", dep.Name)
+				}
+			}
+		}
+	}
 }
