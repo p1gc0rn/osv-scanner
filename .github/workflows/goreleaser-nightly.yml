@@ -1,0 +1,52 @@
+name: Release nightly github action image
+
+on:
+  schedule:
+    # we want the nightly builds only on work days
+    - cron: "0 0 * * 2-6"
+  # Allow us to manually call the workflow
+  workflow_dispatch:
+
+# Restrict jobs in this workflow to have no permissions by default; permissions
+# should be granted per job as needed using a dedicated `permissions` block
+permissions: {}
+
+jobs:
+  goreleaser:
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    permissions:
+      packages: write # for goreleaser/goreleaser-action to publish docker images
+    runs-on: ubuntu-latest
+    env:
+      # Required for buildx on docker 19.x
+      DOCKER_CLI_EXPERIMENTAL: "enabled"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: stable
+          check-latest: true
+      - uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3
+      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3
+      - name: ghcr-login
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run GoReleaser
+        id: run-goreleaser
+        uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552 # v6.3.0
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          # Essentially do a snapshot release, but still push the docker images
+          # Skipping validate skips checks that the current commit has a tag
+          args: release --clean --config .goreleaser-nightly.yml --skip validate,announce
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

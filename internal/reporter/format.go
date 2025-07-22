@@ -13,18 +13,18 @@ func Format() []string {
 	return format
 }
 
-func newResultPrinter(format string, writer io.Writer, terminalWidth int) (resultPrinter, error) {
+func newResultPrinter(format string, writer io.Writer, terminalWidth int, showAllVulns bool) (resultPrinter, error) {
 	switch format {
 	case "html":
 		return &htmlReporter{writer}, nil
 	case "json":
 		return &jsonReporter{writer}, nil
 	case "vertical":
-		return &verticalReporter{writer, terminalWidth}, nil
+		return &verticalReporter{writer, terminalWidth, showAllVulns}, nil
 	case "table":
-		return &tableReporter{writer, false, terminalWidth}, nil
+		return &tableReporter{writer, false, terminalWidth, showAllVulns}, nil
 	case "markdown":
-		return &tableReporter{writer, true, terminalWidth}, nil
+		return &tableReporter{writer, true, terminalWidth, showAllVulns}, nil
 	case "sarif":
 		return &sarifReporter{writer}, nil
 	case "gh-annotations":
@@ -33,6 +33,8 @@ func newResultPrinter(format string, writer io.Writer, terminalWidth int) (resul
 		return &cycloneDXReporter{writer, models.CycloneDXVersion14}, nil
 	case "cyclonedx-1-5":
 		return &cycloneDXReporter{writer, models.CycloneDXVersion15}, nil
+	case "cyclonedx-1-6":
+		return &cycloneDXReporter{writer, models.CycloneDXVersion16}, nil
 	case "spdx-2-3":
 		return &spdxReporter{writer}, nil
 	default:

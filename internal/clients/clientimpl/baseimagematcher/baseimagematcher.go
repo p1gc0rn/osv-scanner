@@ -1,3 +1,4 @@
+// Package baseimagematcher implements a client for matching base images using the deps.dev API.
 package baseimagematcher
 
 import (
@@ -6,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"math"
 	"math/rand/v2"
 	"net/http"
@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/osv-scanner/v2/internal/cmdlogger"
 	"github.com/google/osv-scanner/v2/pkg/models"
 	"github.com/opencontainers/go-digest"
 	"golang.org/x/sync/errgroup"
@@ -151,7 +152,7 @@ func (matcher *DepsDevBaseImageMatcher) queryBaseImagesForChainID(ctx context.Co
 	})
 
 	if err != nil {
-		slog.Error(fmt.Sprintf("deps.dev API error, you may need to update osv-scanner: %s", err))
+		cmdlogger.Errorf("deps.dev API error, you may need to update osv-scanner: %s", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -169,7 +170,7 @@ func (matcher *DepsDevBaseImageMatcher) queryBaseImagesForChainID(ctx context.Co
 	d := json.NewDecoder(resp.Body)
 	err = d.Decode(&results)
 	if err != nil {
-		slog.Error(fmt.Sprintf("Unexpected return type from deps.dev base image endpoint: %s", err))
+		cmdlogger.Errorf("Unexpected return type from deps.dev base image endpoint: %s", err)
 		return nil, err
 	}
 

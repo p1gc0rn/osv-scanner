@@ -220,7 +220,18 @@ func (enc *Encoder) EncodeToken(t Token) error {
 			return err
 		}
 	case CharData:
-		escapeText(p, t, false)
+		if t.cdata {
+			p.Write(cdataStart)
+		}
+		if t.origin != nil {
+			// Write the original text if there are escape sequences replaced.
+			p.Write(t.origin)
+		} else {
+			escapeText(p, t.data, false)
+		}
+		if t.cdata {
+			p.Write(cdataEnd)
+		}
 	case Comment:
 		if bytes.Contains(t, endComment) {
 			return fmt.Errorf("xml: EncodeToken of Comment containing --> marker")
@@ -548,7 +559,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	if tinfo.xmlname != nil && start.Name.Space == "" &&
 		tinfo.xmlname.xmlns == "" && tinfo.xmlname.name == "" &&
 		len(p.tags) != 0 && p.tags[len(p.tags)-1].Space != "" {
-		start.Attr = append(start.Attr, Attr{Name{"", xmlnsPrefix}, ""})
+		start.Attr = append(start.Attr, Attr{Name{"", xmlnsPrefix}, "", ""})
 	}
 	if err := p.writeStart(&start); err != nil {
 		return err
@@ -563,7 +574,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		} else if b != nil {
 			EscapeText(p, b)
 		} else {
-			p.EscapeString(s)
+			p.EscapeString(s, false)
 		}
 	}
 	if err != nil {
@@ -609,7 +620,7 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 		if err != nil {
 			return err
 		}
-		start.Attr = append(start.Attr, Attr{name, string(text)})
+		start.Attr = append(start.Attr, Attr{name, string(text), ""})
 		return nil
 	}
 
@@ -620,7 +631,7 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 			if err != nil {
 				return err
 			}
-			start.Attr = append(start.Attr, Attr{name, string(text)})
+			start.Attr = append(start.Attr, Attr{name, string(text), ""})
 			return nil
 		}
 	}
@@ -657,7 +668,7 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 	if b != nil {
 		s = string(b)
 	}
-	start.Attr = append(start.Attr, Attr{name, s})
+	start.Attr = append(start.Attr, Attr{name, s, ""})
 	return nil
 }
 
@@ -731,7 +742,7 @@ func (p *printer) writeStart(start *StartElement) error {
 
 	if start.Name.Space != "" {
 		p.WriteString(` xmlns="`)
-		p.EscapeString(start.Name.Space)
+		p.EscapeString(start.Name.Space, false)
 		p.WriteByte('"')
 	}
 
@@ -741,20 +752,24 @@ func (p *printer) writeStart(start *StartElement) error {
 		if name.Local == "" {
 			continue
 		}
-		p.WriteByte(' ')
+
+		if attr.Diff == "" {
+			p.WriteByte(' ')
+		} else {
+			p.WriteString(attr.Diff)
+		}
+
 		if name.Space != "" {
 			p.WriteString(p.createAttrPrefix(name.Space))
 			p.WriteByte(':')
 		}
 		p.WriteString(name.Local)
 		p.WriteString(`="`)
-		p.EscapeString(attr.Value)
+		p.EscapeString(attr.Value, true)
 		p.WriteByte('"')
 	}
 
-	if start.Space {
-		p.WriteByte(' ')
-	}
+	p.WriteString(start.Diff)
 	if start.Empty {
 		p.WriteByte('/')
 	}

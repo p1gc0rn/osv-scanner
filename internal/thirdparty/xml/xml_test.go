@@ -139,75 +139,75 @@ const testInput = `
 var testEntity = map[string]string{"何": "What", "is-it": "is it?"}
 
 var rawTokens = []Token{
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 	ProcInst{"xml", []byte(`version="1.0" encoding="UTF-8"`)},
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 	Directive(`DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"`),
-	CharData("\n"),
-	StartElement{Name{"", "body"}, []Attr{{Name{"xmlns", "foo"}, "ns1"}, {Name{"", "xmlns"}, "ns2"}, {Name{"xmlns", "tag"}, "ns3"}}, false, false},
-	CharData("\n  "),
-	StartElement{Name{"", "hello"}, []Attr{{Name{"", "lang"}, "en"}}, false, false},
-	CharData("World <>'\" 白鵬翔"),
+	CharData{data: []byte("\n")},
+	StartElement{Name{"", "body"}, []Attr{{Name{"xmlns", "foo"}, "ns1", ""}, {Name{"", "xmlns"}, "ns2", ""}, {Name{"xmlns", "tag"}, "ns3", ""}}, false, ""},
+	CharData{data: []byte("\n  ")},
+	StartElement{Name{"", "hello"}, []Attr{{Name{"", "lang"}, "en", ""}}, false, ""},
+	CharData{data: []byte("World <>'\" 白鵬翔"), origin: []byte("World &lt;&gt;&apos;&quot; &#x767d;&#40300;翔")},
 	EndElement{Name{"", "hello"}, false},
-	CharData("\n  "),
-	StartElement{Name{"", "query"}, []Attr{}, false, false},
-	CharData("What is it?"),
+	CharData{data: []byte("\n  ")},
+	StartElement{Name{"", "query"}, []Attr{}, false, ""},
+	CharData{data: []byte("What is it?"), origin: []byte("&何; &is-it;")},
 	EndElement{Name{"", "query"}, false},
-	CharData("\n  "),
-	StartElement{Name{"", "goodbye"}, []Attr{}, true, true},
+	CharData{data: []byte("\n  ")},
+	StartElement{Name{"", "goodbye"}, []Attr{}, true, " "},
 	EndElement{Name{"", "goodbye"}, true},
-	CharData("\n  "),
-	StartElement{Name{"", "outer"}, []Attr{{Name{"foo", "attr"}, "value"}, {Name{"xmlns", "tag"}, "ns4"}}, false, false},
-	CharData("\n    "),
-	StartElement{Name{"", "inner"}, []Attr{}, true, false},
+	CharData{data: []byte("\n  ")},
+	StartElement{Name{"", "outer"}, []Attr{{Name{"foo", "attr"}, "value", ""}, {Name{"xmlns", "tag"}, "ns4", ""}}, false, ""},
+	CharData{data: []byte("\n    ")},
+	StartElement{Name{"", "inner"}, []Attr{}, true, ""},
 	EndElement{Name{"", "inner"}, true},
-	CharData("\n  "),
+	CharData{data: []byte("\n  ")},
 	EndElement{Name{"", "outer"}, false},
-	CharData("\n  "),
-	StartElement{Name{"tag", "name"}, []Attr{}, false, false},
-	CharData("\n    "),
-	CharData("Some text here."),
-	CharData("\n  "),
+	CharData{data: []byte("\n  ")},
+	StartElement{Name{"tag", "name"}, []Attr{}, false, ""},
+	CharData{data: []byte("\n    ")},
+	CharData{data: []byte("Some text here."), cdata: true},
+	CharData{data: []byte("\n  ")},
 	EndElement{Name{"tag", "name"}, false},
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 	EndElement{Name{"", "body"}, false},
 	Comment(" missing final newline "),
 }
 
 var cookedTokens = []Token{
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 	ProcInst{"xml", []byte(`version="1.0" encoding="UTF-8"`)},
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 	Directive(`DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"`),
-	CharData("\n"),
-	StartElement{Name{"ns2", "body"}, []Attr{{Name{"xmlns", "foo"}, "ns1"}, {Name{"", "xmlns"}, "ns2"}, {Name{"xmlns", "tag"}, "ns3"}}, false, false},
-	CharData("\n  "),
-	StartElement{Name{"ns2", "hello"}, []Attr{{Name{"", "lang"}, "en"}}, false, false},
-	CharData("World <>'\" 白鵬翔"),
+	CharData{data: []byte("\n")},
+	StartElement{Name{"ns2", "body"}, []Attr{{Name{"xmlns", "foo"}, "ns1", ""}, {Name{"", "xmlns"}, "ns2", ""}, {Name{"xmlns", "tag"}, "ns3", ""}}, false, ""},
+	CharData{data: []byte("\n  ")},
+	StartElement{Name{"ns2", "hello"}, []Attr{{Name{"", "lang"}, "en", ""}}, false, ""},
+	CharData{data: []byte("World <>'\" 白鵬翔"), origin: []byte("World &lt;&gt;&apos;&quot; &#x767d;&#40300;翔")},
 	EndElement{Name{"ns2", "hello"}, false},
-	CharData("\n  "),
-	StartElement{Name{"ns2", "query"}, []Attr{}, false, false},
-	CharData("What is it?"),
+	CharData{data: []byte("\n  ")},
+	StartElement{Name{"ns2", "query"}, []Attr{}, false, ""},
+	CharData{data: []byte("What is it?"), origin: []byte("&何; &is-it;")},
 	EndElement{Name{"ns2", "query"}, false},
-	CharData("\n  "),
-	StartElement{Name{"ns2", "goodbye"}, []Attr{}, true, true},
+	CharData{data: []byte("\n  ")},
+	StartElement{Name{"ns2", "goodbye"}, []Attr{}, true, " "},
 	EndElement{Name{"ns2", "goodbye"}, true},
-	CharData("\n  "),
-	StartElement{Name{"ns2", "outer"}, []Attr{{Name{"ns1", "attr"}, "value"}, {Name{"xmlns", "tag"}, "ns4"}}, false, false},
-	CharData("\n    "),
-	StartElement{Name{"ns2", "inner"}, []Attr{}, true, false},
+	CharData{data: []byte("\n  ")},
+	StartElement{Name{"ns2", "outer"}, []Attr{{Name{"ns1", "attr"}, "value", ""}, {Name{"xmlns", "tag"}, "ns4", ""}}, false, ""},
+	CharData{data: []byte("\n    ")},
+	StartElement{Name{"ns2", "inner"}, []Attr{}, true, ""},
 	EndElement{Name{"ns2", "inner"}, true},
-	CharData("\n  "),
+	CharData{data: []byte("\n  ")},
 	EndElement{Name{"ns2", "outer"}, false},
-	CharData("\n  "),
-	StartElement{Name{"ns3", "name"}, []Attr{}, false, false},
-	CharData("\n    "),
-	CharData("Some text here."),
-	CharData("\n  "),
+	CharData{data: []byte("\n  ")},
+	StartElement{Name{"ns3", "name"}, []Attr{}, false, ""},
+	CharData{data: []byte("\n    ")},
+	CharData{data: []byte("Some text here."), cdata: true},
+	CharData{data: []byte("\n  ")},
 	EndElement{Name{"ns3", "name"}, false},
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 	EndElement{Name{"ns2", "body"}, false},
 	Comment(" missing final newline "),
 }
@@ -217,11 +217,11 @@ const testInputAltEncoding = `
 <TAG>VALUE</TAG>`
 
 var rawTokensAltEncoding = []Token{
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 	ProcInst{"xml", []byte(`version="1.0" encoding="x-testing-uppercase"`)},
-	CharData("\n"),
-	StartElement{Name{"", "tag"}, []Attr{}, false, false},
-	CharData("value"),
+	CharData{data: []byte("\n")},
+	StartElement{Name{"", "tag"}, []Attr{}, false, ""},
+	CharData{data: []byte("value")},
 	EndElement{Name{"", "tag"}, false},
 }
 
@@ -290,39 +290,39 @@ const nonStrictInput = `
 `
 
 var nonStrictTokens = []Token{
-	CharData("\n"),
-	StartElement{Name{"", "tag"}, []Attr{}, false, false},
-	CharData("non&entity"),
+	CharData{data: []byte("\n")},
+	StartElement{Name{"", "tag"}, []Attr{}, false, ""},
+	CharData{data: []byte("non&entity")},
 	EndElement{Name{"", "tag"}, false},
-	CharData("\n"),
-	StartElement{Name{"", "tag"}, []Attr{}, false, false},
-	CharData("&unknown;entity"),
+	CharData{data: []byte("\n")},
+	StartElement{Name{"", "tag"}, []Attr{}, false, ""},
+	CharData{data: []byte("&unknown;entity")},
 	EndElement{Name{"", "tag"}, false},
-	CharData("\n"),
-	StartElement{Name{"", "tag"}, []Attr{}, false, false},
-	CharData("&#123"),
+	CharData{data: []byte("\n")},
+	StartElement{Name{"", "tag"}, []Attr{}, false, ""},
+	CharData{data: []byte("&#123")},
 	EndElement{Name{"", "tag"}, false},
-	CharData("\n"),
-	StartElement{Name{"", "tag"}, []Attr{}, false, false},
-	CharData("&#zzz;"),
+	CharData{data: []byte("\n")},
+	StartElement{Name{"", "tag"}, []Attr{}, false, ""},
+	CharData{data: []byte("&#zzz;")},
 	EndElement{Name{"", "tag"}, false},
-	CharData("\n"),
-	StartElement{Name{"", "tag"}, []Attr{}, false, false},
-	CharData("&なまえ3;"),
+	CharData{data: []byte("\n")},
+	StartElement{Name{"", "tag"}, []Attr{}, false, ""},
+	CharData{data: []byte("&なまえ3;")},
 	EndElement{Name{"", "tag"}, false},
-	CharData("\n"),
-	StartElement{Name{"", "tag"}, []Attr{}, false, false},
-	CharData("&lt-gt;"),
+	CharData{data: []byte("\n")},
+	StartElement{Name{"", "tag"}, []Attr{}, false, ""},
+	CharData{data: []byte("&lt-gt;")},
 	EndElement{Name{"", "tag"}, false},
-	CharData("\n"),
-	StartElement{Name{"", "tag"}, []Attr{}, false, false},
-	CharData("&;"),
+	CharData{data: []byte("\n")},
+	StartElement{Name{"", "tag"}, []Attr{}, false, ""},
+	CharData{data: []byte("&;")},
 	EndElement{Name{"", "tag"}, false},
-	CharData("\n"),
-	StartElement{Name{"", "tag"}, []Attr{}, false, false},
-	CharData("&0a;"),
+	CharData{data: []byte("\n")},
+	StartElement{Name{"", "tag"}, []Attr{}, false, ""},
+	CharData{data: []byte("&0a;")},
 	EndElement{Name{"", "tag"}, false},
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 }
 
 func TestNonStrictRawToken(t *testing.T) {
@@ -444,21 +444,21 @@ var nestedDirectivesInput = `
 `
 
 var nestedDirectivesTokens = []Token{
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 	Directive(`DOCTYPE [<!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#">]`),
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 	Directive(`DOCTYPE [<!ENTITY xlt ">">]`),
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 	Directive(`DOCTYPE [<!ENTITY xlt "<">]`),
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 	Directive(`DOCTYPE [<!ENTITY xlt '>'>]`),
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 	Directive(`DOCTYPE [<!ENTITY xlt '<'>]`),
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 	Directive(`DOCTYPE [<!ENTITY xlt '">'>]`),
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 	Directive(`DOCTYPE [<!ENTITY xlt "'<">]`),
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 }
 
 func TestNestedDirectives(t *testing.T) {
@@ -685,7 +685,7 @@ func TestValuelessAttrs(t *testing.T) {
 
 func TestCopyTokenCharData(t *testing.T) {
 	data := []byte("same data")
-	var tok1 Token = CharData(data)
+	var tok1 Token = CharData{data: data}
 	tok2 := CopyToken(tok1)
 	if !reflect.DeepEqual(tok1, tok2) {
 		t.Error("CopyToken(CharData) != CharData")
@@ -697,7 +697,7 @@ func TestCopyTokenCharData(t *testing.T) {
 }
 
 func TestCopyTokenStartElement(t *testing.T) {
-	elt := StartElement{Name{"", "hello"}, []Attr{{Name{"", "lang"}, "en"}}, false, false}
+	elt := StartElement{Name{"", "hello"}, []Attr{{Name{"", "lang"}, "en", ""}}, false, ""}
 	var tok1 Token = elt
 	tok2 := CopyToken(tok1)
 	if tok1.(StartElement).Attr[0].Value != "en" {
@@ -706,7 +706,7 @@ func TestCopyTokenStartElement(t *testing.T) {
 	if !reflect.DeepEqual(tok1, tok2) {
 		t.Error("CopyToken(StartElement) != StartElement")
 	}
-	tok1.(StartElement).Attr[0] = Attr{Name{"", "lang"}, "de"}
+	tok1.(StartElement).Attr[0] = Attr{Name{"", "lang"}, "de", ""}
 	if reflect.DeepEqual(tok1, tok2) {
 		t.Error("CopyToken(CharData) uses same buffer.")
 	}
@@ -860,13 +860,13 @@ var directivesWithCommentsInput = `
 `
 
 var directivesWithCommentsTokens = []Token{
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 	Directive(`DOCTYPE [ <!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#">]`),
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 	Directive(`DOCTYPE [<!ENTITY go "Golang"> ]`),
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 	Directive(`DOCTYPE <!-> <!>       [<!ENTITY go "Golang"> ]`),
-	CharData("\n"),
+	CharData{data: []byte("\n")},
 }
 
 func TestDirectivesWithComments(t *testing.T) {
@@ -1418,42 +1418,42 @@ func BenchmarkHTMLAutoClose(b *testing.B) {
 func TestHTMLAutoClose(t *testing.T) {
 	wantTokens := []Token{
 		ProcInst{"xml", []byte(`version="1.0" encoding="UTF-8"`)},
-		CharData("\n"),
-		StartElement{Name{"", "br"}, []Attr{}, false, false},
+		CharData{data: []byte("\n")},
+		StartElement{Name{"", "br"}, []Attr{}, false, ""},
 		EndElement{Name{"", "br"}, false},
-		CharData("\n"),
-		StartElement{Name{"", "br"}, []Attr{}, true, false},
+		CharData{data: []byte("\n")},
+		StartElement{Name{"", "br"}, []Attr{}, true, ""},
 		EndElement{Name{"", "br"}, true},
-		StartElement{Name{"", "br"}, []Attr{}, true, false},
+		StartElement{Name{"", "br"}, []Attr{}, true, ""},
 		EndElement{Name{"", "br"}, true},
-		CharData("\n"),
-		StartElement{Name{"", "br"}, []Attr{}, false, false},
+		CharData{data: []byte("\n")},
+		StartElement{Name{"", "br"}, []Attr{}, false, ""},
 		EndElement{Name{"", "br"}, false},
-		StartElement{Name{"", "br"}, []Attr{}, false, false},
+		StartElement{Name{"", "br"}, []Attr{}, false, ""},
 		EndElement{Name{"", "br"}, false},
-		CharData("\n"),
-		StartElement{Name{"", "br"}, []Attr{}, false, false},
+		CharData{data: []byte("\n")},
+		StartElement{Name{"", "br"}, []Attr{}, false, ""},
 		EndElement{Name{"", "br"}, false},
-		CharData("\n"),
-		StartElement{Name{"", "BR"}, []Attr{}, false, false},
+		CharData{data: []byte("\n")},
+		StartElement{Name{"", "BR"}, []Attr{}, false, ""},
 		EndElement{Name{"", "BR"}, false},
-		CharData("\n"),
-		StartElement{Name{"", "BR"}, []Attr{}, true, false},
+		CharData{data: []byte("\n")},
+		StartElement{Name{"", "BR"}, []Attr{}, true, ""},
 		EndElement{Name{"", "BR"}, true},
-		StartElement{Name{"", "BR"}, []Attr{}, true, false},
+		StartElement{Name{"", "BR"}, []Attr{}, true, ""},
 		EndElement{Name{"", "BR"}, true},
-		CharData("\n"),
-		StartElement{Name{"", "Br"}, []Attr{}, false, false},
+		CharData{data: []byte("\n")},
+		StartElement{Name{"", "Br"}, []Attr{}, false, ""},
 		EndElement{Name{"", "Br"}, false},
-		CharData("\n"),
-		StartElement{Name{"", "BR"}, []Attr{}, false, false},
+		CharData{data: []byte("\n")},
+		StartElement{Name{"", "BR"}, []Attr{}, false, ""},
 		EndElement{Name{"", "BR"}, false},
-		StartElement{Name{"", "span"}, []Attr{{Name: Name{"", "id"}, Value: "test"}}, false, false},
-		CharData("abc"),
+		StartElement{Name{"", "span"}, []Attr{{Name: Name{"", "id"}, Value: "test"}}, false, ""},
+		CharData{data: []byte("abc")},
 		EndElement{Name{"", "span"}, false},
-		StartElement{Name{"", "br"}, []Attr{}, true, false},
+		StartElement{Name{"", "br"}, []Attr{}, true, ""},
 		EndElement{Name{"", "br"}, true},
-		StartElement{Name{"", "br"}, []Attr{}, true, false},
+		StartElement{Name{"", "br"}, []Attr{}, true, ""},
 		EndElement{Name{"", "br"}, true},
 	}
 

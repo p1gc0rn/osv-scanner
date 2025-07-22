@@ -12,6 +12,7 @@ import (
 
 type MockHTTPServer struct {
 	*httptest.Server
+
 	mu            sync.Mutex
 	response      map[string][]byte // path -> response
 	authorization string            // expected Authorization header contents
@@ -25,7 +26,7 @@ func NewMockHTTPServer(t *testing.T) *MockHTTPServer {
 	t.Helper()
 	mock := &MockHTTPServer{response: make(map[string][]byte)}
 	mock.Server = httptest.NewServer(mock)
-	t.Cleanup(func() { mock.Server.Close() })
+	t.Cleanup(func() { mock.Close() })
 
 	return mock
 }

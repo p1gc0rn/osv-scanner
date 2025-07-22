@@ -115,7 +115,7 @@ func (v *vulnList) Update(msg tea.Msg) (ViewModel, tea.Cmd) {
 		case key.Matches(msg, Keys.Quit):
 			return v, CloseViewModel
 		case key.Matches(msg, Keys.Select):
-			vuln := v.Model.SelectedItem().(vulnListItem)
+			vuln := v.SelectedItem().(vulnListItem)
 			v.currVulnInfo = NewVulnInfo(vuln.Vulnerability)
 			v.currVulnInfo.Resize(v.Width(), v.Height())
 
@@ -180,8 +180,8 @@ func (d vulnListItemDelegate) Render(w io.Writer, m list.Model, index int, listI
 		idStyle = idStyle.Inherit(SelectedTextStyle)
 	}
 	id := idStyle.Render(vuln.OSV.ID)
-	severity := RenderSeverityShort(vuln.OSV.Severity)
-	str := fmt.Sprintf("%s %s  %s  ", cursor, id, severity)
+	sev := RenderSeverityShort(vuln.OSV.Severity)
+	str := fmt.Sprintf("%s %s  %s  ", cursor, id, sev)
 	fmt.Fprint(w, str)
 	fmt.Fprint(w, truncate.StringWithTail(vuln.OSV.Summary, uint(m.Width()-lipgloss.Width(str)), "…")) //nolint:gosec
 }

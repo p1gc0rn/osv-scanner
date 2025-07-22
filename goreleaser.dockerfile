@@ -12,15 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM alpine:3.21@sha256:a8560b36e8b8210634f77d9f7f9efd7ffa463e380b75e2e74aff4511df3ef88c
+FROM golang:1.24.5-alpine3.21@sha256:6edc20586dd08dacad538c1f09984bc2aa61720be59056cf75429691f294d731
 
 RUN apk add --no-cache \
     ca-certificates \
-    git \
-    go
+    git
 
 # Allow git to run on mounted directories
 RUN git config --global --add safe.directory '*'
+
+WORKDIR /
 
 COPY osv-scanner ./
 

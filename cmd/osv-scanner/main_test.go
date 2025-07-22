@@ -7,6 +7,7 @@ import (
 	"github.com/google/osv-scanner/v2/cmd/osv-scanner/internal/testcmd"
 )
 
+//nolint:paralleltest
 func Test_run(t *testing.T) {
 	tests := []testcmd.Case{
 		{
@@ -20,6 +21,8 @@ func Test_run(t *testing.T) {
 			Exit: 0,
 		},
 	}
+
+	// No parallel because --version output is not thread safe.
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			testcmd.RunAndMatchSnapshots(t, tt)
@@ -28,6 +31,8 @@ func Test_run(t *testing.T) {
 }
 
 func Test_run_SubCommands(t *testing.T) {
+	t.Parallel()
+
 	tests := []testcmd.Case{
 		// without subcommands
 		{
@@ -51,6 +56,8 @@ func Test_run_SubCommands(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
+
 			testcmd.RunAndMatchSnapshots(t, tt)
 		})
 	}

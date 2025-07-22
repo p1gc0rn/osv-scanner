@@ -1,18 +1,18 @@
 package cmd
 
 import (
+	"context"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
+	"strings"
+	"testing"
 
-	"github.com/google/osv-scanner/v2/cmd/osv-scanner/fix"
-	"github.com/google/osv-scanner/v2/cmd/osv-scanner/scan"
-	"github.com/google/osv-scanner/v2/cmd/osv-scanner/update"
 	"github.com/google/osv-scanner/v2/internal/cmdlogger"
+	"github.com/google/osv-scanner/v2/internal/testlogger"
 	"github.com/google/osv-scanner/v2/internal/version"
 	"github.com/google/osv-scanner/v2/pkg/osvscanner"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var (
@@ -20,18 +20,49 @@ var (
 	date   = "n/a"
 )
 
-func Run(args []string, stdout, stderr io.Writer) int {
-	logger := cmdlogger.New(stdout, stderr)
+type CommandBuilder = func(stdout, stderr io.Writer) *cli.Command
 
-	slog.SetDefault(slog.New(&logger))
+func Run(args []string, stdout, stderr io.Writer, commands []CommandBuilder) int {
+	// get rid of the extraneous space in the subcommand help template, as otherwise
+	// our snapshots will fail because it will be trailing and removed by editors
+	//
+	// todo: remove this once https://github.com/urfave/cli/pull/2140 has been released
+	cli.SubcommandHelpTemplate = strings.ReplaceAll(
+		cli.SubcommandHelpTemplate,
+		"{{if .VisibleCommands}} [command [command options]] {{end}}",
+		"{{if .VisibleCommands}} [command [command options]]{{end}}",
+	)
 
-	cli.VersionPrinter = func(ctx *cli.Context) {
-		slog.Info("osv-scanner version: " + ctx.App.Version)
-		slog.Info("commit: " + commit)
-		slog.Info("built at: " + date)
+	// --- Setup Logger ---
+	logHandler := cmdlogger.New(stdout, stderr)
+
+	// If in testing mode, set logger via Handler
+	// Otherwise, set default global logger
+	if testing.Testing() {
+		handler, ok := slog.Default().Handler().(*testlogger.Handler)
+		if !ok {
+			panic("Test failed to initialize default logger with Handler")
+		}
+
+		handler.AddInstance(logHandler)
+		defer handler.Delete()
+	} else {
+		slog.SetDefault(slog.New(logHandler))
+	}
+	// ---
+
+	cli.VersionPrinter = func(cmd *cli.Command) {
+		cmdlogger.Infof("osv-scanner version: %s", cmd.Version)
+		cmdlogger.Infof("commit: %s", commit)
+		cmdlogger.Infof("built at: %s", date)
 	}
 
-	app := &cli.App{
+	cmds := make([]*cli.Command, 0, len(commands))
+	for _, cmd := range commands {
+		cmds = append(cmds, cmd(stdout, stderr))
+	}
+
+	app := &cli.Command{
 		Name:           "osv-scanner",
 		Version:        version.OSVVersion,
 		Usage:          "scans various mediums for dependencies and checks them against the OSV database",
@@ -39,12 +70,9 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		Writer:         stdout,
 		ErrWriter:      stderr,
 		DefaultCommand: "scan",
-		Commands: []*cli.Command{
-			scan.Command(stdout, stderr),
-			fix.Command(stdout, stderr),
-			update.Command(),
-		},
-		CustomAppHelpTemplate: getCustomHelpTemplate(),
+		Commands:       cmds,
+
+		CustomRootCommandHelpTemplate: getCustomHelpTemplate(),
 	}
 
 	// If ExitErrHandler is not set, cli will use the default cli.HandleExitCoder.
@@ -57,27 +85,35 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	// early without proper error handling.
 	//
 	// This removes the handler entirely so that behavior will not unexpectedly happen.
-	app.ExitErrHandler = func(_ *cli.Context, _ error) {}
+	app.ExitErrHandler = func(_ context.Context, _ *cli.Command, _ error) {}
 
 	args = insertDefaultCommand(args, app.Commands, app.DefaultCommand, stderr)
 
-	if err := app.Run(args); err != nil {
+	err := app.Run(context.Background(), args)
+
+	// if the config is invalid, it's possible that is why any other errors
+	// happened so that exit code takes priority
+	if logHandler.HasErroredBecauseInvalidConfig() {
+		return 130
+	}
+
+	if err != nil {
 		switch {
 		case errors.Is(err, osvscanner.ErrVulnerabilitiesFound):
 			return 1
 		case errors.Is(err, osvscanner.ErrNoPackagesFound):
-			slog.Error("No package sources found, --help for usage information.")
+			cmdlogger.Errorf("No package sources found, --help for usage information.")
 			return 128
 		case errors.Is(err, osvscanner.ErrAPIFailed):
-			slog.Error(fmt.Sprintf("%v", err))
+			cmdlogger.Errorf("%v", err)
 			return 129
 		}
-		slog.Error(fmt.Sprintf("%v", err))
+		cmdlogger.Errorf("%v", err)
 	}
 
 	// if we've been told to print an error, and not already exited with
 	// a specific error code, then exit with a generic non-zero code
-	if logger.HasErrored() {
+	if logHandler.HasErrored() {
 		return 127
 	}
 

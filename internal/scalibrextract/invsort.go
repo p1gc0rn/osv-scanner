@@ -4,22 +4,29 @@ import (
 	"cmp"
 	"fmt"
 
+	"github.com/google/osv-scalibr/converter"
 	"github.com/google/osv-scalibr/extractor"
 )
 
 // InventorySort is a comparator function for Inventories, to be used in
 // tests with cmp.Diff to disregard the order in which the Inventories
 // are reported.
-func inventorySort(a, b *extractor.Inventory) int {
+func inventorySort(a, b *extractor.Package) int {
 	aLoc := fmt.Sprintf("%v", a.Locations)
 	bLoc := fmt.Sprintf("%v", b.Locations)
 
 	var aExtr, bExtr string
-	if a.Extractor != nil {
-		aExtr = a.Extractor.Name()
+	var aPURL, bPURL string
+
+	aPURLStruct := converter.ToPURL(a)
+	bPURLStruct := converter.ToPURL(b)
+
+	if aPURLStruct != nil {
+		aPURL = aPURLStruct.String()
 	}
-	if b.Extractor != nil {
-		bExtr = b.Extractor.Name()
+
+	if bPURLStruct != nil {
+		bPURL = bPURLStruct.String()
 	}
 
 	aSourceCode := fmt.Sprintf("%v", a.SourceCode)
@@ -31,5 +38,6 @@ func inventorySort(a, b *extractor.Inventory) int {
 		cmp.Compare(a.Version, b.Version),
 		cmp.Compare(aSourceCode, bSourceCode),
 		cmp.Compare(aExtr, bExtr),
+		cmp.Compare(aPURL, bPURL),
 	)
 }

@@ -8,10 +8,12 @@ import (
 
 	"github.com/google/osv-scanner/v2/internal/cmdlogger"
 	"github.com/google/osv-scanner/v2/internal/testutility"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 func Test_insertDefaultCommand(t *testing.T) {
+	t.Parallel()
+
 	commands := []*cli.Command{
 		{Name: "default"},
 		{Name: "helpers.go"},
@@ -69,7 +71,7 @@ func Test_insertDefaultCommand(t *testing.T) {
 
 		logger := cmdlogger.New(stdout, stderr)
 
-		slog.SetDefault(slog.New(&logger))
+		slog.SetDefault(slog.New(logger))
 
 		argsActual := insertDefaultCommand(tt.originalArgs, commands, defaultCommand, stderr)
 		if !reflect.DeepEqual(argsActual, tt.wantArgs) {

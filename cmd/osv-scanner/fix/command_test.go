@@ -1,6 +1,7 @@
 package fix_test
 
 import (
+	"context"
 	"os"
 	"slices"
 	"testing"
@@ -9,7 +10,7 @@ import (
 	"github.com/google/osv-scanner/v2/cmd/osv-scanner/internal/testcmd"
 	"github.com/google/osv-scanner/v2/internal/remediation/upgrade"
 	"github.com/google/osv-scanner/v2/internal/testutility"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 func matchFile(t *testing.T, file string) {
@@ -22,72 +23,71 @@ func matchFile(t *testing.T, file string) {
 }
 
 func TestCommand(t *testing.T) {
-	tests := []struct {
-		name     string
-		args     []string
-		exit     int
-		manifest string
-		lockfile string
-	}{
+	t.Parallel()
+
+	tests := []testcmd.Case{
 		{
-			name:     "fix non-interactive in-place package-lock.json",
-			args:     []string{"", "fix", "--strategy=in-place"},
-			exit:     0,
-			lockfile: "./fixtures/in-place-npm/package-lock.json",
+			Name: "no_args_provided",
+			Args: []string{"", "fix"},
+			Exit: 127,
 		},
 		{
-			name:     "fix non-interactive relax package.json",
-			args:     []string{"", "fix", "--strategy=relax"},
-			exit:     0,
-			manifest: "./fixtures/relax-npm/package.json",
+			Name: "fix non-interactive in-place package-lock.json",
+			Args: []string{"", "fix", "--strategy=in-place", "-L", "./fixtures/in-place-npm/package-lock.json"},
+			Exit: 0,
 		},
 		{
-			name:     "fix non-interactive override pom.xml",
-			args:     []string{"", "fix", "--strategy=override"},
-			exit:     0,
-			manifest: "./fixtures/override-maven/pom.xml",
+			Name: "fix_non_interactive_in_place_package_lock_json_with_native_data_source",
+			Args: []string{"", "fix", "--strategy=in-place", "--data-source", "native", "-L", "./fixtures/in-place-npm/package-lock.json"},
+			Exit: 0,
 		},
 		{
-			name:     "fix non-interactive json in-place package-lock.json",
-			args:     []string{"", "fix", "--strategy=in-place", "--format=json"},
-			exit:     0,
-			lockfile: "./fixtures/in-place-npm/package-lock.json",
+			Name: "fix non-interactive relax package.json",
+			Args: []string{"", "fix", "--strategy=relax", "-M", "./fixtures/relax-npm/package.json"},
+			Exit: 0,
 		},
 		{
-			name:     "fix non-interactive json relax package.json",
-			args:     []string{"", "fix", "--strategy=relax", "--format=json"},
-			exit:     0,
-			manifest: "./fixtures/relax-npm/package.json",
+			Name: "fix non-interactive override pom.xml",
+			Args: []string{"", "fix", "--strategy=override", "-M", "./fixtures/override-maven/pom.xml"},
+			Exit: 0,
 		},
 		{
-			name:     "fix non-interactive json override pom.xml",
-			args:     []string{"", "fix", "--strategy=override", "--format=json"},
-			exit:     0,
-			manifest: "./fixtures/override-maven/pom.xml",
+			Name: "fix_non_interactive_override_pom_xml_with_native_data_source",
+			Args: []string{"", "fix", "--strategy=override", "--data-source", "native", "-M", "./fixtures/override-maven/pom.xml"},
+			Exit: 0,
+		},
+		{
+			Name: "fix non-interactive json in-place package-lock.json",
+			Args: []string{"", "fix", "--strategy=in-place", "--format=json", "-L", "./fixtures/in-place-npm/package-lock.json"},
+			Exit: 0,
+		},
+		{
+			Name: "fix non-interactive json relax package.json",
+			Args: []string{"", "fix", "--strategy=relax", "--format=json", "-M", "./fixtures/relax-npm/package.json"},
+			Exit: 0,
+		},
+		{
+			Name: "fix non-interactive json override pom.xml",
+			Args: []string{"", "fix", "--strategy=override", "--format=json", "-M", "./fixtures/override-maven/pom.xml"},
+			Exit: 0,
+		},
+		{
+			Name: "errors_with_invalid_data_source",
+			Args: []string{"", "fix", "--data-source=github"},
+			Exit: 127,
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tc := testcmd.Case{
-				Name: tt.name,
-				Args: slices.Clone(tt.args),
-				Exit: tt.exit,
-			}
+		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
 
 			// fix action overwrites files, copy them to a temporary directory
 			testDir := testutility.CreateTestDir(t)
 
-			var lockfile, manifest string
-			if tt.lockfile != "" {
-				lockfile = testcmd.CopyFileTo(t, tt.lockfile, testDir)
-				tc.Args = append(tc.Args, "-L", lockfile)
-			}
-			if tt.manifest != "" {
-				manifest = testcmd.CopyFileTo(t, tt.manifest, testDir)
-				tc.Args = append(tc.Args, "-M", manifest)
-			}
+			lockfile := testcmd.CopyFileFlagTo(t, tt, "-L", testDir)
+			manifest := testcmd.CopyFileFlagTo(t, tt, "-M", testDir)
 
-			testcmd.RunAndMatchSnapshots(t, tc)
+			testcmd.RunAndMatchSnapshots(t, tt)
 
 			if lockfile != "" {
 				matchFile(t, lockfile)
@@ -99,7 +99,7 @@ func TestCommand(t *testing.T) {
 	}
 }
 
-func parseFlags(t *testing.T, flags []string, arguments []string) (*cli.Context, error) {
+func parseFlags(t *testing.T, flags []string, arguments []string) (*cli.Command, error) {
 	// This is a bit hacky: make a mock App with only the flags we care about.
 	// Then use app.RunAndMatchSnapshots() to parse the flags into the cli.Context, which is returned.
 	t.Helper()
@@ -109,22 +109,24 @@ func parseFlags(t *testing.T, flags []string, arguments []string) (*cli.Context,
 			appFlags = append(appFlags, f)
 		}
 	}
-	var parsedContext *cli.Context
-	app := cli.App{
+	var parsedCmd *cli.Command
+	app := cli.Command{
 		Flags: appFlags,
-		Action: func(ctx *cli.Context) error {
+		Action: func(_ context.Context, cmd *cli.Command) error {
 			t.Helper()
-			parsedContext = ctx
+			parsedCmd = cmd
 
 			return nil
 		},
 	}
-	err := app.Run(append([]string{""}, arguments...))
+	err := app.Run(t.Context(), append([]string{""}, arguments...))
 
-	return parsedContext, err
+	return parsedCmd, err
 }
 
 func Test_parseUpgradeConfig(t *testing.T) {
+	t.Parallel()
+
 	flags := []string{"upgrade-config"}
 
 	tests := []struct {
@@ -196,11 +198,13 @@ func Test_parseUpgradeConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, err := parseFlags(t, flags, tt.args)
+			t.Parallel()
+
+			cmd, err := parseFlags(t, flags, tt.args)
 			if err != nil {
 				t.Fatalf("error parsing flags: %v", err)
 			}
-			config := upgrade.ParseUpgradeConfig(ctx.StringSlice("upgrade-config"))
+			config := upgrade.ParseUpgradeConfig(cmd.StringSlice("upgrade-config"))
 			for pkg, want := range tt.want {
 				if got := config.Get(pkg); got != want {
 					t.Errorf("Config.Get(%s) got = %v, want %v", pkg, got, want)

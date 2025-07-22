@@ -1,3 +1,4 @@
+// Package reporter provides functionality for reporting scan results in various formats.
 package reporter
 
 import (
@@ -17,8 +18,9 @@ func PrintResult(
 	format string,
 	writer io.Writer,
 	terminalWidth int,
+	showAllVulns bool,
 ) error {
-	r, err := newResultPrinter(format, writer, terminalWidth)
+	r, err := newResultPrinter(format, writer, terminalWidth, showAllVulns)
 
 	if err != nil {
 		return err

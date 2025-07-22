@@ -1,96 +1,97 @@
+// Package source implements the `source` subcommand of the `scan` command.
 package source
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/google/osv-scanner/v2/cmd/osv-scanner/internal/helper"
+	"github.com/google/osv-scanner/v2/internal/cmdlogger"
 	"github.com/google/osv-scanner/v2/pkg/models"
 	"github.com/google/osv-scanner/v2/pkg/osvscanner"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
-var projectScanFlags = []cli.Flag{
-	&cli.StringSliceFlag{
-		Name:      "lockfile",
-		Aliases:   []string{"L"},
-		Usage:     "scan package lockfile on this path",
-		TakesFile: true,
-	},
-	&cli.StringSliceFlag{
-		Name:      "sbom",
-		Aliases:   []string{"S"},
-		Usage:     "scan sbom file on this path, the sbom file name must follow the relevant spec",
-		TakesFile: true,
-	},
-	&cli.BoolFlag{
-		Name:    "recursive",
-		Aliases: []string{"r"},
-		Usage:   "check subdirectories",
-		Value:   false,
-	},
-	&cli.BoolFlag{
-		Name:  "no-ignore",
-		Usage: "also scan files that would be ignored by .gitignore",
-		Value: false,
-	},
-	&cli.StringSliceFlag{
-		Name:  "call-analysis",
-		Usage: "attempt call analysis on code to detect only active vulnerabilities",
-	},
-	&cli.StringSliceFlag{
-		Name:  "no-call-analysis",
-		Usage: "disables call graph analysis",
-	},
-	&cli.BoolFlag{
-		Name:  "include-git-root",
-		Usage: "include scanning git root (non-submoduled) repositories",
-		Value: false,
-	},
-	&cli.StringFlag{
-		Name:  "data-source",
-		Usage: "source to fetch package information from; value can be: deps.dev, native",
-		Value: "deps.dev",
-		Action: func(_ *cli.Context, s string) error {
-			if s != "deps.dev" && s != "native" {
-				return fmt.Errorf("unsupported data-source \"%s\" - must be one of: deps.dev, native", s)
-			}
-
-			return nil
-		},
-	},
-	&cli.StringFlag{
-		Name:  "maven-registry",
-		Usage: "URL of the default registry to fetch Maven metadata",
-	},
-}
-
 func Command(stdout, stderr io.Writer) *cli.Command {
-	flags := make([]cli.Flag, 0, len(projectScanFlags)+len(helper.GetScanGlobalFlags()))
-	flags = append(flags, projectScanFlags...)
-	flags = append(flags, helper.GetScanGlobalFlags()...)
-
 	return &cli.Command{
 		Name:        "source",
 		Usage:       "scans a source project's dependencies for known vulnerabilities using the OSV database.",
 		Description: "scans a source project's dependencies for known vulnerabilities using the OSV database.",
-		Flags:       flags,
-		ArgsUsage:   "[directory1 directory2...]",
-		Action: func(c *cli.Context) error {
-			return action(c, stdout, stderr)
+		Flags: append([]cli.Flag{
+			&cli.StringSliceFlag{
+				Name:      "lockfile",
+				Aliases:   []string{"L"},
+				Usage:     "scan package lockfile on this path",
+				TakesFile: true,
+			},
+			&cli.StringSliceFlag{
+				Name:    "sbom",
+				Aliases: []string{"S"},
+				Usage:   "[DEPRECATED] scan sbom file on this path, the sbom file name must follow the relevant spec",
+				Action: func(_ context.Context, _ *cli.Command, _ []string) error {
+					cmdlogger.Warnf("Warning: --sbom has been deprecated in favor of -L")
+
+					return nil
+				},
+				TakesFile: true,
+			},
+			&cli.BoolFlag{
+				Name:    "recursive",
+				Aliases: []string{"r"},
+				Usage:   "check subdirectories",
+				Value:   false,
+			},
+			&cli.BoolFlag{
+				Name:  "no-ignore",
+				Usage: "also scan files that would be ignored by .gitignore",
+				Value: false,
+			},
+			&cli.StringSliceFlag{
+				Name:  "call-analysis",
+				Usage: "attempt call analysis on code to detect only active vulnerabilities",
+			},
+			&cli.StringSliceFlag{
+				Name:  "no-call-analysis",
+				Usage: "disables call graph analysis",
+			},
+			&cli.BoolFlag{
+				Name:  "include-git-root",
+				Usage: "include scanning git root (non-submoduled) repositories",
+				Value: false,
+			},
+			&cli.StringFlag{
+				Name:  "data-source",
+				Usage: "source to fetch package information from; value can be: deps.dev, native",
+				Value: "deps.dev",
+				Action: func(_ context.Context, _ *cli.Command, s string) error {
+					if s != "deps.dev" && s != "native" {
+						return fmt.Errorf("unsupported data-source \"%s\" - must be one of: deps.dev, native", s)
+					}
+
+					return nil
+				},
+			},
+			&cli.StringFlag{
+				Name:  "maven-registry",
+				Usage: "URL of the default registry to fetch Maven metadata",
+			},
+		}, helper.BuildCommonScanFlags([]string{"lockfile", "sbom", "directory"})...),
+		ArgsUsage: "[directory1 directory2...]",
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return action(ctx, cmd, stdout, stderr)
 		},
 	}
 }
 
-func action(context *cli.Context, stdout, stderr io.Writer) error {
-	format := context.String("format")
+func action(_ context.Context, cmd *cli.Command, stdout, stderr io.Writer) error {
+	format := cmd.String("format")
 
-	outputPath := context.String("output")
-	serve := context.Bool("serve")
+	outputPath := cmd.String("output")
+	serve := cmd.Bool("serve")
 	if serve {
 		format = "html"
 		if outputPath == "" {
@@ -107,41 +108,50 @@ func action(context *cli.Context, stdout, stderr io.Writer) error {
 		}
 	}
 
-	scanLicensesAllowlist, err := helper.GetScanLicensesAllowlist(context)
+	scanLicensesAllowlist, err := helper.GetScanLicensesAllowlist(cmd)
 	if err != nil {
 		return err
 	}
 
-	callAnalysisStates := helper.CreateCallAnalysisStates(context.StringSlice("call-analysis"), context.StringSlice("no-call-analysis"))
+	callAnalysisStates := helper.CreateCallAnalysisStates(cmd.StringSlice("call-analysis"), cmd.StringSlice("no-call-analysis"))
 
-	experimentalScannerActions := helper.GetExperimentalScannerActions(context, scanLicensesAllowlist)
+	experimentalScannerActions := helper.GetExperimentalScannerActions(cmd)
 	// Add `source` specific experimental configs
 	experimentalScannerActions.TransitiveScanningActions = osvscanner.TransitiveScanningActions{
-		Disabled:         context.Bool("no-resolve"),
-		NativeDataSource: context.String("data-source") == "native",
-		MavenRegistry:    context.String("maven-registry"),
+		Disabled:         cmd.Bool("no-resolve"),
+		NativeDataSource: cmd.String("data-source") == "native",
+		MavenRegistry:    cmd.String("maven-registry"),
 	}
 
-	scannerAction := osvscanner.ScannerActions{
-		LockfilePaths:              context.StringSlice("lockfile"),
-		SBOMPaths:                  context.StringSlice("sbom"),
-		Recursive:                  context.Bool("recursive"),
-		IncludeGitRoot:             context.Bool("include-git-root"),
-		NoIgnore:                   context.Bool("no-ignore"),
-		ConfigOverridePath:         context.String("config"),
-		DirectoryPaths:             context.Args().Slice(),
-		CallAnalysisStates:         callAnalysisStates,
-		ExperimentalScannerActions: experimentalScannerActions,
+	scannerAction := helper.GetCommonScannerActions(cmd, scanLicensesAllowlist)
+
+	scannerAction.LockfilePaths = cmd.StringSlice("lockfile")
+	//nolint:staticcheck // ignore our own deprecated field
+	scannerAction.SBOMPaths = cmd.StringSlice("sbom")
+	scannerAction.Recursive = cmd.Bool("recursive")
+	scannerAction.NoIgnore = cmd.Bool("no-ignore")
+	scannerAction.DirectoryPaths = cmd.Args().Slice()
+	scannerAction.CallAnalysisStates = callAnalysisStates
+	scannerAction.ExperimentalScannerActions = experimentalScannerActions
+
+	if len(experimentalScannerActions.Extractors) == 0 {
+		return errors.New("at least one extractor must be enabled")
 	}
 
 	var vulnResult models.VulnerabilityResults
+	//nolint:contextcheck // passing the context in would be a breaking change
 	vulnResult, err = osvscanner.DoScan(scannerAction)
+
+	if cmd.Bool("allow-no-lockfiles") && errors.Is(err, osvscanner.ErrNoPackagesFound) {
+		cmdlogger.Warnf("No package sources found")
+		err = nil
+	}
 
 	if err != nil && !errors.Is(err, osvscanner.ErrVulnerabilitiesFound) {
 		return err
 	}
 
-	if errPrint := helper.PrintResult(stdout, stderr, outputPath, format, &vulnResult); errPrint != nil {
+	if errPrint := helper.PrintResult(stdout, stderr, outputPath, format, &vulnResult, scannerAction.ShowAllVulns); errPrint != nil {
 		return fmt.Errorf("failed to write output: %w", errPrint)
 	}
 
@@ -150,7 +160,7 @@ func action(context *cli.Context, stdout, stderr io.Writer) error {
 		if serve {
 			helper.ServeHTML(outputPath)
 		} else if format == "html" {
-			slog.Info("HTML output available at: " + outputPath)
+			cmdlogger.Infof("HTML output available at: %s", outputPath)
 		}
 	}
 

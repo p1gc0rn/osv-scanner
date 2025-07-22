@@ -59,11 +59,13 @@ type MavenManifestSpecific struct {
 
 type PropertyWithOrigin struct {
 	maven.Property
+
 	Origin string // Origin indicates where the property comes from
 }
 
 type DependencyWithOrigin struct {
 	maven.Dependency
+
 	Origin string // Origin indicates where the dependency comes from
 }
 
@@ -83,7 +85,7 @@ func (m MavenReadWriter) Read(df depfile.DepFile) (Manifest, error) {
 			VersionKey: resolve.VersionKey{
 				PackageKey: resolve.PackageKey{
 					System: resolve.Maven,
-					Name:   project.Parent.ProjectKey.Name(),
+					Name:   project.Parent.Name(),
 				},
 				// Parent version is a concrete version, but we model parent as dependency here.
 				VersionType: resolve.Requirement,
@@ -100,7 +102,7 @@ func (m MavenReadWriter) Read(df depfile.DepFile) (Manifest, error) {
 
 	// TODO: there may be properties in repo.Releases.Enabled and repo.Snapshots.Enabled
 	for _, repo := range project.Repositories {
-		if err := m.MavenRegistryAPIClient.AddRegistry(datasource.MavenRegistry{
+		if err := m.AddRegistry(datasource.MavenRegistry{
 			URL:              string(repo.URL),
 			ID:               string(repo.ID),
 			ReleasesEnabled:  repo.Releases.Enabled.Boolean(),
@@ -118,9 +120,9 @@ func (m MavenReadWriter) Read(df depfile.DepFile) (Manifest, error) {
 	// For dependency management imports, the dependencies that imports
 	// dependencies from other projects will be replaced by the imported
 	// dependencies, so add them to requirements first.
-	for _, dep := range project.DependencyManagement.Dependencies {
-		if dep.Scope == "import" && dep.Type == "pom" {
-			reqsForUpdates = append(reqsForUpdates, makeRequirementVersion(dep, mavenutil.OriginManagement))
+	for _, dmDep := range project.DependencyManagement.Dependencies {
+		if dmDep.Scope == "import" && dmDep.Type == "pom" {
+			reqsForUpdates = append(reqsForUpdates, makeRequirementVersion(dmDep, mavenutil.OriginManagement))
 		}
 	}
 
@@ -243,7 +245,7 @@ func buildOriginalRequirements(project maven.Project, originPrefix string) []Dep
 		for _, d := range plugin.Dependencies {
 			dependencies = append(dependencies, DependencyWithOrigin{
 				Dependency: d,
-				Origin:     mavenOrigin(originPrefix, mavenutil.OriginPlugin, plugin.ProjectKey.Name()),
+				Origin:     mavenOrigin(originPrefix, mavenutil.OriginPlugin, plugin.Name()),
 			})
 		}
 	}
@@ -256,23 +258,23 @@ func buildOriginalRequirements(project maven.Project, originPrefix string) []Dep
 //   - prefix indicates it is from profile or plugin
 //   - identifier to locate the profile/plugin which is profile ID or plugin name
 //   - (optional) suffix indicates if this is a dependency management
-func makeRequirementVersion(dep maven.Dependency, origin string) resolve.RequirementVersion {
+func makeRequirementVersion(dependency maven.Dependency, origin string) resolve.RequirementVersion {
 	// Treat test & optional dependencies as regular dependencies to force the resolver to resolve them.
-	if dep.Scope == "test" {
-		dep.Scope = ""
+	if dependency.Scope == "test" {
+		dependency.Scope = ""
 	}
-	dep.Optional = ""
+	dependency.Optional = ""
 
 	return resolve.RequirementVersion{
 		VersionKey: resolve.VersionKey{
 			PackageKey: resolve.PackageKey{
 				System: resolve.Maven,
-				Name:   dep.Name(),
+				Name:   dependency.Name(),
 			},
 			VersionType: resolve.Requirement,
-			Version:     string(dep.Version),
+			Version:     string(dependency.Version),
 		},
-		Type: resolve.MavenDepType(dep, origin),
+		Type: resolve.MavenDepType(dependency, origin),
 	}
 }
 
@@ -386,6 +388,7 @@ type MavenPatches struct {
 
 type MavenPatch struct {
 	maven.DependencyKey
+
 	NewRequire string
 }
 
@@ -740,6 +743,7 @@ func writeProject(w io.Writer, enc *internalxml.Encoder, raw, prefix, id string,
 				updated["parent"] = true
 				type RawParent struct {
 					maven.ProjectKey
+
 					InnerXML string `xml:",innerxml"`
 				}
 				var rawParent RawParent
@@ -781,6 +785,7 @@ func writeProject(w io.Writer, enc *internalxml.Encoder, raw, prefix, id string,
 				}
 				type RawProfile struct {
 					maven.Profile
+
 					InnerXML string `xml:",innerxml"`
 				}
 				var rawProfile RawProfile
@@ -799,13 +804,14 @@ func writeProject(w io.Writer, enc *internalxml.Encoder, raw, prefix, id string,
 				}
 				type RawPlugin struct {
 					maven.Plugin
+
 					InnerXML string `xml:",innerxml"`
 				}
 				var rawPlugin RawPlugin
 				if err := dec.DecodeElement(&rawPlugin, &tt); err != nil {
 					return err
 				}
-				if err := writeProject(w, enc, "<plugin>"+rawPlugin.InnerXML+"</plugin>", mavenutil.OriginPlugin, rawPlugin.ProjectKey.Name(), patches, properties, updated); err != nil {
+				if err := writeProject(w, enc, "<plugin>"+rawPlugin.InnerXML+"</plugin>", mavenutil.OriginPlugin, rawPlugin.Name(), patches, properties, updated); err != nil {
 					return fmt.Errorf("updating profile: %w", err)
 				}
 
@@ -813,6 +819,7 @@ func writeProject(w io.Writer, enc *internalxml.Encoder, raw, prefix, id string,
 			case "dependencyManagement":
 				type RawDependencyManagement struct {
 					maven.DependencyManagement
+
 					InnerXML string `xml:",innerxml"`
 				}
 				var rawDepMgmt RawDependencyManagement
@@ -854,6 +861,32 @@ func writeProject(w io.Writer, enc *internalxml.Encoder, raw, prefix, id string,
 	return enc.Flush()
 }
 
+// indentation returns the indentation of the dependency element.
+// If dependencies or dependency elements are not found, the default
+// indentation (four space) is returned.
+func indentation(raw string) string {
+	i := strings.Index(raw, "<dependencies>")
+	if i < 0 {
+		return "    "
+	}
+
+	raw = raw[i+len("<dependencies>"):]
+	// Find the first dependency element.
+	j := strings.Index(raw, "<dependency>")
+	if j < 0 {
+		return "    "
+	}
+
+	raw = raw[:j]
+	// Find the last new line and get the space between.
+	k := strings.LastIndex(raw, "\n")
+	if k < 0 {
+		return "    "
+	}
+
+	return raw[k+1:]
+}
+
 func writeDependency(w io.Writer, enc *internalxml.Encoder, raw string, patches map[MavenPatch]bool) error {
 	dec := internalxml.NewDecoder(bytes.NewReader([]byte(raw)))
 	for {
@@ -889,7 +922,8 @@ func writeDependency(w io.Writer, enc *internalxml.Encoder, raw string, patches 
 				// Sort dependencies for consistency in testing.
 				slices.SortFunc(deps, compareDependency)
 
-				enc.Indent("      ", "  ")
+				enc.Indent(indentation(raw), "  ")
+
 				// Write a new line to keep the format.
 				if _, err := w.Write([]byte("\n")); err != nil {
 					return err
@@ -906,6 +940,7 @@ func writeDependency(w io.Writer, enc *internalxml.Encoder, raw string, patches 
 			if tt.Name.Local == "dependency" {
 				type RawDependency struct {
 					maven.Dependency
+
 					InnerXML string `xml:",innerxml"`
 				}
 				var rawDep RawDependency

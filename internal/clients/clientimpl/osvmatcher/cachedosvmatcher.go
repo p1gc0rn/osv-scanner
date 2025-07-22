@@ -1,3 +1,4 @@
+// Package osvmatcher implements two vulnerability matcher using osv.dev's API.
 package osvmatcher
 
 import (
@@ -11,9 +12,10 @@ import (
 	"github.com/google/osv-scalibr/extractor"
 	"github.com/google/osv-scanner/v2/internal/clients/clientimpl/localmatcher"
 	"github.com/google/osv-scanner/v2/internal/imodels"
-	"github.com/google/osv-scanner/v2/internal/osvdev"
 	"github.com/ossf/osv-schema/bindings/go/osvschema"
 	"golang.org/x/sync/errgroup"
+	"osv.dev/bindings/go/osvdev"
+	"osv.dev/bindings/go/osvdevexperimental"
 )
 
 // CachedOSVMatcher implements the VulnerabilityMatcher interface with a osv.dev client.
@@ -32,7 +34,7 @@ type CachedOSVMatcher struct {
 	vulnCache sync.Map // map[osvdev.Package][]osvschema.Vulnerability
 }
 
-func (matcher *CachedOSVMatcher) MatchVulnerabilities(ctx context.Context, invs []*extractor.Inventory) ([][]*osvschema.Vulnerability, error) {
+func (matcher *CachedOSVMatcher) MatchVulnerabilities(ctx context.Context, invs []*extractor.Package) ([][]*osvschema.Vulnerability, error) {
 	// populate vulnCache with missing packages
 	if err := matcher.doQueries(ctx, invs); err != nil {
 		return nil, err
@@ -60,14 +62,14 @@ func (matcher *CachedOSVMatcher) MatchVulnerabilities(ctx context.Context, invs 
 	return results, nil
 }
 
-func (matcher *CachedOSVMatcher) doQueries(ctx context.Context, invs []*extractor.Inventory) error {
+func (matcher *CachedOSVMatcher) doQueries(ctx context.Context, invs []*extractor.Package) error {
 	var batchResp *osvdev.BatchedResponse
 	deadlineExceeded := false
 
 	var queries []*osvdev.Query
 	{
 		// determine which packages aren't already cached
-		// convert Inventory to Query for each pkgs element
+		// convert Package to Query for each pkgs element
 		toQuery := make(map[*osvdev.Query]struct{})
 		for _, inv := range invs {
 			pkgInfo := imodels.FromInventory(inv)
@@ -94,10 +96,10 @@ func (matcher *CachedOSVMatcher) doQueries(ctx context.Context, invs []*extracto
 	// If there is a timeout for the initial query, set an additional context deadline here.
 	if matcher.InitialQueryTimeout > 0 {
 		batchQueryCtx, cancelFunc := context.WithDeadline(ctx, time.Now().Add(matcher.InitialQueryTimeout))
-		batchResp, err = queryForBatchWithPaging(batchQueryCtx, &matcher.Client, queries)
+		batchResp, err = osvdevexperimental.BatchQueryPaging(batchQueryCtx, &matcher.Client, queries)
 		cancelFunc()
 	} else {
-		batchResp, err = queryForBatchWithPaging(ctx, &matcher.Client, queries)
+		batchResp, err = osvdevexperimental.BatchQueryPaging(ctx, &matcher.Client, queries)
 	}
 
 	if err != nil {

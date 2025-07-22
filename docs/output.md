@@ -1,6 +1,5 @@
 ---
 layout: page
-title: Output
 permalink: /output/
 nav_order: 6
 ---
@@ -27,6 +26,7 @@ For every vulnerability found, OSV-Scanner will display the following informatio
 - Ecosystem: Ecosystem associated with the package
 - Package: Package name
 - Version: Package version
+- Fixed Version: The version where the vulnerability is fixed, if available. If no fix is available, this will be shown as `--`.
 - Source: Path to the sbom or lockfile where the package originated
 
 And if you are performing layer scanning, osv-scanner additionally returns:
@@ -52,13 +52,18 @@ osv-scanner scan --format table your/project/dir
 <summary><b>Sample table output</b></summary>
 
 ```bash
-╭─────────────────────────────────────┬──────┬───────────┬──────────────────────────┬─────────┬────────────────────╮
-│ OSV URL                             │ CVSS │ ECOSYSTEM │  PACKAGE                 │ VERSION │ SOURCE             │
-├─────────────────────────────────────┼──────┼───────────┼──────────────────────────┼─────────┼────────────────────┤
-│ https://osv.dev/GHSA-c3h9-896r-86jm | 8.6  │ Go        │ github.com/gogo/protobuf │ 1.3.1   │ path/to/go.mod     │
-│ https://osv.dev/GHSA-m5pq-gvj9-9vr8 | 7.5  │ crates.io │ regex                    │ 1.3.1   │ path/to/Cargo.lock │
-╰─────────────────────────────────────┴──────┴───────────┴──────────────────────────┴─────────┴────────────────────╯
+Total 2 packages affected by 2 known vulnerabilities (1 Critical, 1 High, 0 Medium, 0 Low, 0 Unknown) from 2 ecosystems.
+1 vulnerability can be fixed.
+
+╭─────────────────────────────────────┬──────┬───────────┬──────────────────────────┬───────────────┬─────────┬────────────────────╮
+│ OSV URL                             │ CVSS │ ECOSYSTEM │  PACKAGE                 │ FIXED VERSION │ VERSION │ SOURCE             │
+├─────────────────────────────────────┼──────┼───────────┼──────────────────────────┼───────────────┼─────────┼────────────────────┤
+│ https://osv.dev/GHSA-c3h9-896r-86jm │ 8.6  │ Go        │ github.com/gogo/protobuf │ 1.3.2         │ 1.3.1   │ path/to/go.mod     │
+│ https://osv.dev/GHSA-m5pq-gvj9-9vr8 │ 7.5  │ crates.io │ regex                    │ --            │ 1.3.1   │ path/to/Cargo.lock │
+╰─────────────────────────────────────┴──────┴───────────┴──────────────────────────┴───────────────┴─────────┴────────────────────╯
 ```
+
+If the 'Fixed Version' column is empty or shows `--`, it means there is currently no fix for this vulnerability.
 
 </details>
 
@@ -76,18 +81,21 @@ osv-scanner scan --format markdown your/project/dir
 **Raw output:**
 
 ```
-| OSV URL                                                                   | CVSS | Ecosystem | Package                  | Version | Source                                                 |
-| ------------------------------------------------------------------------- | ---- | --------- | ------------------------ | ------- | ------------------------------------------------------ |
-| https://osv.dev/GHSA-c3h9-896r-86jm<br/>https://osv.dev/GO-2021-0053      | 8.6  | Go        | github.com/gogo/protobuf | 1.3.1   | ../scorecard-check-osv-e2e/go.mod                      |
-| https://osv.dev/GHSA-m5pq-gvj9-9vr8<br/>https://osv.dev/RUSTSEC-2022-0013 | 7.5  | crates.io | regex                    | 1.5.1   | ../scorecard-check-osv-e2e/sub-rust-project/Cargo.lock |
+Total 2 packages affected by 2 known vulnerabilities (1 Critical, 1 High, 0 Medium, 0 Low, 0 Unknown) from 2 ecosystems.
+1 vulnerability can be fixed.
+
+| OSV URL                            | CVSS | Ecosystem | Package                  | Fixed Version | Version | Source                                                 |
+| ---------------------------------- | ---- | --------- | ------------------------ | ------------- | ------- | ------------------------------------------------------ |
+| https://osv.dev/GHSA-c3h9-896r-86jm| 8.6  | Go        | github.com/gogo/protobuf | 1.3.2         | 1.3.1   | ../scorecard-check-osv-e2e/go.mod                      |
+| https://osv.dev/GHSA-m5pq-gvj9-9vr8| 7.5  | crates.io | regex                    | --            | 1.5.1   | ../scorecard-check-osv-e2e/sub-rust-project/Cargo.lock |
 ```
 
 **Rendered:**
 
-| OSV URL                                                                   | CVSS | Ecosystem | Package                  | Version | Source                                                 |
-| ------------------------------------------------------------------------- | ---- | --------- | ------------------------ | ------- | ------------------------------------------------------ |
-| https://osv.dev/GHSA-c3h9-896r-86jm<br/>https://osv.dev/GO-2021-0053      | 8.6  | Go        | github.com/gogo/protobuf | 1.3.1   | ../scorecard-check-osv-e2e/go.mod                      |
-| https://osv.dev/GHSA-m5pq-gvj9-9vr8<br/>https://osv.dev/RUSTSEC-2022-0013 | 7.5  | crates.io | regex                    | 1.5.1   | ../scorecard-check-osv-e2e/sub-rust-project/Cargo.lock |
+| OSV URL                             | CVSS | Ecosystem | Package                  | Fixed Version | Version | Source                                                 |
+| ----------------------------------- | ---- | --------- | ------------------------ | ------------- | ------- | ------------------------------------------------------ |
+| https://osv.dev/GHSA-c3h9-896r-86jm | 8.6  | Go        | github.com/gogo/protobuf | 1.3.2         | 1.3.1   | ../scorecard-check-osv-e2e/go.mod                      |
+| https://osv.dev/GHSA-m5pq-gvj9-9vr8 | 7.5  | crates.io | regex                    | --            | 1.5.1   | ../scorecard-check-osv-e2e/sub-rust-project/Cargo.lock |
 
 </details>
 
@@ -114,9 +122,6 @@ And additionally for container image scanning:
 - Layer filtering
 - Image layer information
 - Base image identification
-
-{: .note }
-This feature is in beta as part of OSV-Scanner v2, please [share your feedback here](https://github.com/google/osv-scanner/discussions/1529).
 
 <details markdown="1">
 <summary><b>Sample HTML output</b></summary>
@@ -382,7 +387,7 @@ Outputs the result in the [SARIF](https://sarifweb.azurewebsites.net/) v2.1.0 fo
 
 ## Call analysis
 
-With `--experimental-call-analysis` flag enabled, call information will be included in the output.
+With `--call-analysis` flag enabled, call information will be included in the output.
 
 ### Table
 
@@ -391,7 +396,7 @@ affects code called by your project, and vulnerabilities that only affect code p
 your code.
 
 ```bash
-osv-scanner scan --format table --experimental-call-analysis your/project/dir
+osv-scanner scan --format table --call-analysis your/project/dir
 ```
 
 <details markdown="1">
@@ -420,7 +425,7 @@ osv-scanner scan --format table --experimental-call-analysis your/project/dir
 The JSON output will include analysis results for each vulnerability group.
 
 ```bash
-osv-scanner scan --format json --experimental-call-analysis -L path/to/lockfile > /path/to/file.json
+osv-scanner scan --format json --call-analysis -L path/to/lockfile > /path/to/file.json
 ```
 
 <details markdown="1">

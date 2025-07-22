@@ -210,9 +210,9 @@ func (m *MavenRegistryAPIClient) getArtifactMetadata(ctx context.Context, regist
 	return metadata, nil
 }
 
-func (m *MavenRegistryAPIClient) get(ctx context.Context, auth *HTTPAuthentication, url string, dst any) error {
-	resp, err := m.responses.Get(url, func() (response, error) {
-		resp, err := auth.Get(ctx, http.DefaultClient, url)
+func (m *MavenRegistryAPIClient) get(ctx context.Context, auth *HTTPAuthentication, apiURL string, dst any) error {
+	resp, err := m.responses.Get(apiURL, func() (response, error) {
+		resp, err := auth.Get(ctx, http.DefaultClient, apiURL)
 		if err != nil {
 			return response{}, fmt.Errorf("%w: Maven registry query failed: %w", errAPIFailed, err)
 		}
@@ -223,11 +223,12 @@ func (m *MavenRegistryAPIClient) get(ctx context.Context, auth *HTTPAuthenticati
 			return response{}, fmt.Errorf("%w: Maven registry query status: %d", errAPIFailed, resp.StatusCode)
 		}
 
-		if b, err := io.ReadAll(resp.Body); err == nil {
-			return response{StatusCode: resp.StatusCode, Body: b}, nil
+		b, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return response{}, fmt.Errorf("failed to read body: %w", err)
 		}
 
-		return response{}, fmt.Errorf("failed to read body: %w", err)
+		return response{StatusCode: resp.StatusCode, Body: b}, nil
 	})
 	if err != nil {
 		return err

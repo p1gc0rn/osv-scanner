@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"slices"
 
 	"deps.dev/util/resolve"
 	"deps.dev/util/resolve/dep"
 	"deps.dev/util/semver"
+	"github.com/google/osv-scanner/v2/internal/cmdlogger"
 	"github.com/google/osv-scanner/v2/internal/remediation/upgrade"
 	"github.com/google/osv-scanner/v2/internal/resolution"
 	"github.com/google/osv-scanner/v2/internal/resolution/client"
@@ -21,6 +21,7 @@ import (
 
 type overridePatch struct {
 	resolve.PackageKey
+
 	OrigVersion string
 	NewVersion  string
 }
@@ -239,7 +240,7 @@ func overridePatchVulns(ctx context.Context, cl client.ResolutionClient, result 
 
 	// Sort the patches for deterministic output.
 	slices.SortFunc(effectivePatches, func(a, b overridePatch) int {
-		if c := a.PackageKey.Compare(b.PackageKey); c != 0 {
+		if c := a.Compare(b.PackageKey); c != 0 {
 			return c
 		}
 
@@ -261,7 +262,7 @@ func getVersionsGreater(ctx context.Context, cl client.DependencyClient, vk reso
 	for _, ver := range versions {
 		parsed, err := semver.Maven.Parse(ver.Version)
 		if err != nil {
-			log.Printf("parsing Maven version %s: %v", parsed, err)
+			cmdlogger.Warnf("parsing Maven version %s: %v", parsed, err)
 			continue
 		}
 		semvers[ver.VersionKey] = parsed

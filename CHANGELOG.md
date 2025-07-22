@@ -1,3 +1,60 @@
+# v2.1.0
+
+### Features:
+
+- [Feature #2038](https://github.com/google/osv-scanner/pull/2038) Add CycloneDX location field to the output source string.
+- [Feature #2036](https://github.com/google/osv-scanner/pull/2036) Include upstream source information in vulnerability grouping to improve accuracy.
+- [Feature #1970](https://github.com/google/osv-scanner/pull/1970) Hide unimportant vulnerabilities by default to reduce noise, and adds a `--show-all-vulns` flag to show all.
+- [Feature #2003](https://github.com/google/osv-scanner/pull/2003) Add experimental summary output format for the reporter.
+- [Feature #1988](https://github.com/google/osv-scanner/pull/1988) Add support for CycloneDX 1.6 report format.
+- [Feature #1987](https://github.com/google/osv-scanner/pull/1987) Add support for `gems.locked` files used by Bundler.
+- [Feature #1980](https://github.com/google/osv-scanner/pull/1980) Enable transitive dependency extraction for Python `requirements.txt` files.
+- [Feature #1961](https://github.com/google/osv-scanner/pull/1961) Deprecate the `--sbom` flag in favor of the existing `-L/--lockfile` flag for scanning SBOMs.
+- [Feature #1963](https://github.com/google/osv-scanner/pull/1963) Stabilize various experimental fields in the output by moving them out of the experimental struct.
+- [Feature #1957](https://github.com/google/osv-scanner/pull/1957) Use a dedicated exit code for invalid configuration files.
+
+### Fixes:
+
+- [Bug #2046](https://github.com/google/osv-scanner/pull/2046) Correctly set the user agent string for all outgoing requests.
+- [Bug #2019](https://github.com/google/osv-scanner/pull/2019) Use more natural language in the descriptions for extractor-related flags.
+- [Bug #1982](https://github.com/google/osv-scanner/pull/1982) Correctly parse Ubuntu package information with suffixes (e.g. `:Pro`, `:LTS`).
+- [Bug #2000](https://github.com/google/osv-scanner/pull/2000) Ensure CDATA content in XML is correctly outputted in guided remediation.
+- [Bug #1949](https://github.com/google/osv-scanner/pull/1949) Fix filtering of package types in vulnerability counts.
+
+# v2.0.3
+
+### Features:
+
+- [Feature #1943](https://github.com/google/osv-scanner/pull/1943) Added a flag to suppress "no package sources found" error.
+- [Feature #1844](https://github.com/google/osv-scanner/pull/1844) Allow flags to be passed after scan targets, e.g. `osv-scanner ./scan-this-dir --format=vertical`, by updating to cli/v3
+- [Feature #1882](https://github.com/google/osv-scanner/pull/1882) Added a `stable` tag to container images for releases that follow semantic versioning.
+- [Feature #1846](https://github.com/google/osv-scanner/pull/1846) Experimental: Add `--experimental-extractors` and `--experimental-disable-extractors` flags to allow for more granular control over which OSV-Scalibr dependency extractors are used.
+
+### Fixes:
+
+- [Bug #1856](https://github.com/google/osv-scanner/pull/1856) Improve XML output by guessing and matching the indentation of existing `<dependency>` elements.
+- [Bug #1850](https://github.com/google/osv-scanner/pull/1850) Prevent escaping of single quotes in XML attributes for better readability and correctness.
+- [Bug #1922](https://github.com/google/osv-scanner/pull/1922) Prevent a potential panic in `MatchVulnerabilities` when the API response is nil, particularly on timeout.
+- [Bug #1916](https://github.com/google/osv-scanner/pull/1916) Add the "ubuntu" namespace to the debian purl type to correctly parse dpkg BOMs generated on Ubuntu.
+- [Bug #1871](https://github.com/google/osv-scanner/pull/1871) Ensure inventories are sorted by PURL in addition to name and version to prevent incorrect deduplication of packages.
+- [Bug #1919](https://github.com/google/osv-scanner/pull/1919) Improve error reporting by including the underlying error when the response body from a Maven registry cannot be read.
+- [Bug #1857](https://github.com/google/osv-scanner/pull/1857) Fix an issue where SPDX output is not correctly outputted because it was getting overwritten.
+- [Bug #1873](https://github.com/google/osv-scanner/pull/1873) Fix the GitHub Action to not ignore general errors during execution.
+- [Bug #1955](https://github.com/google/osv-scanner/pull/1955) Fix issue causing error messages to be spammed when not running in a git repository.
+- [Bug #1930](https://github.com/google/osv-scanner/pull/1930) Fix issue where Maven client loses auth data during extraction.
+
+### Misc:
+
+- Update dependencies and updated golang to 1.24.4
+
+# v2.0.2
+
+### Fixes:
+
+- [Bug #1842](https://github.com/google/osv-scanner/pull/1842) Fix an issue in the GitHub Action where call analysis for Go projects using the `tool` directive (Go 1.24+) in `go.mod` files would fail. The scanner image has been updated to use a newer Go version.
+- [Bug #1806](https://github.com/google/osv-scanner/pull/1806) Fix an issue where license overrides were not correctly reflected in the final scan results and license summary.
+- [Fix #1825](https://github.com/google/osv-scanner/pull/1825), [#1809](https://github.com/google/osv-scanner/pull/1809), [#1805](https://github.com/google/osv-scanner/pull/1805), [#1803](https://github.com/google/osv-scanner/pull/1803), [#1787](https://github.com/google/osv-scanner/pull/1787) Enhance XML output stability and consistency by preserving original spacing and minimizing unnecessary escaping. This helps reduce differences when XML files are processed.
+
 # v2.0.1
 
 ### Features:
@@ -585,7 +642,7 @@ OSV-Scalibr also makes it incredibly easy to add new extractors. Please file a [
 ### Features
 
 - [Feature #534](https://github.com/google/osv-scanner/pull/534)
-  New SARIF format that separates out individual vulnerabilities, see https://github.com/google/osv-scanner/issue/216
+  New SARIF format that separates out individual vulnerabilities, see https://github.com/google/osv-scanner/issues/216
 - [Experimental Feature #57](https://github.com/google/osv-scanner/issues/57) Experimental Github Action!
   Have a look at https://google.github.io/osv-scanner/experimental/ for how to use the new Github Action in your repo.
   Experimental, so might change with only a minor update.

@@ -3,7 +3,6 @@ package testutility
 import (
 	"bufio"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -55,44 +54,14 @@ func normalizeFilePaths(t *testing.T, output string) string {
 func normalizeRootDirectory(t *testing.T, str string) string {
 	t.Helper()
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Errorf("could not get cwd (%v) - results and diff might be inaccurate!", err)
-	}
-
-	cwd = normalizeFilePaths(t, cwd)
-
-	// todo: currently this is a workaround for the osv-scanner/cmd/scan tests to
-	//  avoid having to move the fixtures and make other changes right now but
-	//  we should be able to remove this in future, e.g. by moving the fixtures
-	//  e.g. /home/me/projects/osv-scanner/cmd/osv-scanner/scan will be come
-	//  /home/me/projects/osv-scanner, and then get matched for the rootdir
-	if strings.Contains(cwd, "osv-scanner/cmd") {
-		for {
-			if strings.HasSuffix(cwd, "osv-scanner/cmd") {
-				break
-			}
-
-			// because we normalize the path to use forward slashes,
-			// we need to use the not-os-specific path.Dir for this
-			cwd = path.Dir(cwd)
-		}
-	}
+	cwd := normalizeFilePaths(t, GetCurrentWorkingDirectory(t))
 
 	// file uris with Windows end up with three slashes, so we normalize that too
 	str = strings.ReplaceAll(str, "file:///"+cwd, "file://<rootdir>")
 	str = strings.ReplaceAll(str, cwd, "<rootdir>")
 
 	// Replace versions without the root as well
-	var root string
-	if runtime.GOOS == "windows" {
-		root = filepath.VolumeName(cwd) + "\\"
-	}
-
-	if strings.HasPrefix(cwd, "/") {
-		root = "/"
-	}
-	str = strings.ReplaceAll(str, cwd[len(root):], "<rootdir>")
+	str = strings.ReplaceAll(str, pathWithoutRoot(t, cwd), "<rootdir>")
 
 	return str
 }
@@ -123,6 +92,10 @@ func normalizeTempDirectory(t *testing.T, str string) string {
 	//nolint:gocritic // ensure that the directory doesn't end with a trailing slash
 	tempDir := normalizeFilePaths(t, filepath.Join(os.TempDir()))
 	re := cachedregexp.MustCompile(regexp.QuoteMeta(tempDir+`/osv-scanner-test-`) + `\d+`)
+	str = re.ReplaceAllString(str, "<tempdir>")
+
+	// Replace versions without the root as well
+	re = cachedregexp.MustCompile(regexp.QuoteMeta(pathWithoutRoot(t, tempDir)+`/osv-scanner-test-`) + `\d+`)
 
 	return re.ReplaceAllString(str, "<tempdir>")
 }
@@ -135,6 +108,8 @@ func normalizeErrors(t *testing.T, str string) string {
 	str = strings.ReplaceAll(str, "The filename, directory name, or volume label syntax is incorrect.", "no such file or directory")
 	str = strings.ReplaceAll(str, "The system cannot find the path specified.", "no such file or directory")
 	str = strings.ReplaceAll(str, "The system cannot find the file specified.", "no such file or directory")
+	str = strings.ReplaceAll(str, "CreateFile", "lstat")
+	str = strings.ReplaceAll(str, "\nstat ./fixtures/", "\nlstat ./fixtures/")
 
 	return str
 }
@@ -165,4 +140,20 @@ func normalizeSnapshot(t *testing.T, str string) string {
 	}
 
 	return str
+}
+
+func pathWithoutRoot(t *testing.T, str string) string {
+	t.Helper()
+
+	// Replace versions without the root as well
+	var root string
+	if runtime.GOOS == "windows" {
+		root = filepath.VolumeName(str) + "\\"
+	}
+
+	if strings.HasPrefix(str, "/") {
+		root = "/"
+	}
+
+	return str[len(root):]
 }

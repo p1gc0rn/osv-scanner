@@ -1,3 +1,4 @@
+// Package manifest provides functionality for reading and writing manifest files.
 package manifest
 
 import (
@@ -94,10 +95,10 @@ func Overwrite(rw ReadWriter, filename string, p Patch) error {
 
 func GetReadWriter(pathToManifest string, registry string) (ReadWriter, error) {
 	base := filepath.Base(pathToManifest)
-	switch {
-	case base == "pom.xml":
+	switch base {
+	case "pom.xml":
 		return NewMavenReadWriter(registry)
-	case base == "package.json":
+	case "package.json":
 		return NpmReadWriter{}, nil
 	default:
 		return nil, fmt.Errorf("unsupported manifest type: %s", base)
@@ -108,6 +109,7 @@ func GetReadWriter(pathToManifest string, registry string) (ReadWriter, error) {
 // It does not include the version specification.
 type RequirementKey struct {
 	resolve.PackageKey
+
 	EcosystemSpecific any
 }
 

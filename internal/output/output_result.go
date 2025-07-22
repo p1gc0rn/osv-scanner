@@ -44,7 +44,6 @@ type EcosystemResult struct {
 type SourceResult struct {
 	Name                   string
 	Type                   models.SourceType
-	Ecosystem              string
 	PackageTypeCount       AnalysisCount
 	Packages               []PackageResult
 	VulnCount              VulnCount
@@ -67,6 +66,7 @@ type PackageResult struct {
 	VulnCount         VulnCount
 	Licenses          []models.License
 	LicenseViolations []models.License
+	DepGroups         []string `json:"-"`
 }
 
 // VulnResult represents a single vulnerability.
@@ -371,10 +371,9 @@ func processSource(packageSource models.PackageSource) map[string]SourceResult {
 	// If no packages with issues are found, mark the ecosystem as empty.
 	if len(packageSource.Packages) == 0 {
 		sourceResults[""] = SourceResult{
-			Name:      packageSource.Source.String(),
-			Type:      packageSource.Source.Type,
-			Ecosystem: "",
-			Packages:  []PackageResult{},
+			Name:     packageSource.Source.String(),
+			Type:     packageSource.Source.Type,
+			Packages: []PackageResult{},
 		}
 
 		return sourceResults
@@ -383,9 +382,8 @@ func processSource(packageSource models.PackageSource) map[string]SourceResult {
 	for _, vulnPkg := range packageSource.Packages {
 		if _, exists := sourceResults[vulnPkg.Package.Ecosystem]; !exists {
 			sourceResults[vulnPkg.Package.Ecosystem] = SourceResult{
-				Name:      packageSource.Source.String(),
-				Type:      packageSource.Source.Type,
-				Ecosystem: vulnPkg.Package.Ecosystem,
+				Name: packageSource.Source.String(),
+				Type: packageSource.Source.Type,
 			}
 		}
 
@@ -473,6 +471,7 @@ func processPackage(vulnPkg models.PackageVulns) PackageResult {
 		VulnCount:         count,
 		Licenses:          vulnPkg.Licenses,
 		LicenseViolations: vulnPkg.LicenseViolations,
+		DepGroups:         vulnPkg.DepGroups,
 	}
 
 	return packageResult
@@ -489,13 +488,14 @@ func processVulnGroups(vulnPkg models.PackageVulns) (map[string]VulnResult, map[
 	hiddenVulnMap := make(map[string]VulnResult)
 
 	for _, group := range vulnPkg.Groups {
-		slices.SortFunc(group.IDs, identifiers.IDSortFunc)
-		slices.SortFunc(group.Aliases, identifiers.IDSortFunc)
-
 		representID := group.IDs[0]
-		aliases := group.Aliases
-		if len(group.Aliases) > 0 && group.Aliases[0] == representID {
-			aliases = aliases[1:]
+		var aliases []string
+		if len(group.Aliases) > 0 && slices.Contains(group.Aliases, representID) {
+			for _, val := range group.Aliases {
+				if val != representID {
+					aliases = append(aliases, val)
+				}
+			}
 		}
 
 		vuln := VulnResult{
@@ -566,7 +566,7 @@ func getNextFixVersion(allAffected []osvschema.Affected, installedVersion string
 
 	minFixVersion := UnfixedDescription
 	for _, affected := range allAffected {
-		if affected.Package.Name != installedPackage || affected.Package.Ecosystem != ecosystem {
+		if affected.Package.Name != installedPackage || removeVariants(affected.Package.Ecosystem) != ecosystem {
 			continue
 		}
 		for _, affectedRange := range affected.Ranges {
@@ -849,4 +849,27 @@ func containsOSResult(result Result) bool {
 	}
 
 	return false
+}
+
+func ecosystemHasRegVuln(ecosystem EcosystemResult) bool {
+	for _, source := range ecosystem.Sources {
+		if source.PackageTypeCount.Regular > 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
+func removeVariants(ecosystem string) string {
+	if strings.Contains(ecosystem, "Ubuntu") {
+		ecosystem := strings.ReplaceAll(strings.ReplaceAll(ecosystem, ":Pro", ""), ":LTS", "")
+		return ecosystem
+	}
+
+	return ecosystem
+}
+
+func formatHiddenVulnsPrompt(hiddenVulns int) string {
+	return fmt.Sprintf("Hiding %d number of vulnerabilities deemed unimportant, use --all-vulns to show them.", hiddenVulns)
 }

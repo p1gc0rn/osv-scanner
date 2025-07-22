@@ -1,9 +1,7 @@
 package vendored_test
 
 import (
-	"context"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -14,9 +12,9 @@ import (
 	"github.com/google/osv-scalibr/extractor/filesystem/simplefileapi"
 	"github.com/google/osv-scalibr/testing/extracttest"
 	"github.com/google/osv-scalibr/testing/fakefs"
-	"github.com/google/osv-scanner/v2/internal/osvdev"
 	"github.com/google/osv-scanner/v2/internal/scalibrextract/filesystem/vendored"
 	"github.com/google/osv-scanner/v2/internal/testutility"
+	"osv.dev/bindings/go/osvdev"
 )
 
 func TestExtractor_FileRequired(t *testing.T) {
@@ -102,10 +100,7 @@ func TestExtractor_Extract(t *testing.T) {
 		// TODO: Reenable when #657 is resolved.
 		testutility.Skip(t, "Temporarily disabled until #657 is resolved")
 	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
+	cwd := testutility.GetCurrentWorkingDirectory(t)
 
 	tests := []extracttest.TestTableEntry{
 		{
@@ -114,7 +109,7 @@ func TestExtractor_Extract(t *testing.T) {
 				Path:         "testdata/thirdparty/zlib",
 				FakeScanRoot: cwd,
 			},
-			WantInventory: []*extractor.Inventory{
+			WantPackages: []*extractor.Package{
 				{
 					SourceCode: &extractor.SourceCodeIdentifier{
 						Commit: "09155eaa2f9270dc4ed1fa13e2b4b2613e6e4851",
@@ -135,14 +130,14 @@ func TestExtractor_Extract(t *testing.T) {
 			scanInput := extracttest.GenerateScanInputMock(t, tt.InputConfig)
 			defer extracttest.CloseTestScanInput(t, scanInput)
 
-			got, err := extr.Extract(context.Background(), &scanInput)
+			got, err := extr.Extract(t.Context(), &scanInput)
 
 			if diff := cmp.Diff(tt.WantErr, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s.Extract(%q) error diff (-want +got):\n%s", extr.Name(), tt.InputConfig.Path, diff)
 				return
 			}
 
-			if diff := cmp.Diff(tt.WantInventory, got, cmpopts.SortSlices(extracttest.InventoryCmpLess)); diff != "" {
+			if diff := cmp.Diff(tt.WantPackages, got.Packages, cmpopts.SortSlices(extracttest.PackageCmpLess)); diff != "" {
 				t.Errorf("%s.Extract(%q) diff (-want +got):\n%s", extr.Name(), tt.InputConfig.Path, diff)
 			}
 		})

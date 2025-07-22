@@ -1,17 +1,33 @@
+// Package identifiers provides functions for sorting vulnerability identifiers.
 package identifiers
 
 import (
 	"strings"
+
+	"github.com/ossf/osv-schema/bindings/go/osvschema"
 )
 
+// MostUpstreamsOrder orders by which vuln has the most upstreams,
+// thereby finding the furthest downstream vuln identifier.
+func MostUpstreamsOrder(a, b osvschema.Vulnerability) int {
+	if len(a.Upstream) > len(b.Upstream) {
+		return -1
+	} else if len(a.Upstream) < len(b.Upstream) {
+		return 1
+	}
+
+	return IDSortFunc(a.ID, b.ID)
+}
+
 func prefixOrder(prefix string) int {
-	if prefix == "DSA" || prefix == "USN" {
+	switch prefix {
+	case "DSA", "USN":
 		// Special case: For container scanning, DSA contains multiple CVEs and is more accurate.
 		return 3
-	} else if prefix == "CVE" {
+	case "CVE":
 		// Highest precedence for normal cases
 		return 2
-	} else if prefix == "GHSA" {
+	case "GHSA":
 		// Lowest precedence
 		return 0
 	}
@@ -20,9 +36,10 @@ func prefixOrder(prefix string) int {
 }
 
 func prefixOrderForDescription(prefix string) int {
-	if prefix == "CVE" {
+	switch prefix {
+	case "CVE":
 		return 0
-	} else if prefix == "GHSA" {
+	case "GHSA":
 		return 1
 	}
 

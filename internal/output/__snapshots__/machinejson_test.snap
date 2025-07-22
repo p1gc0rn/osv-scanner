@@ -4,8 +4,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -22,8 +22,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": [
         {
@@ -50,8 +50,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/third/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/third/lockfile",
+        "type": "unknown"
       },
       "packages": [
         {
@@ -94,8 +94,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -115,8 +115,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": [
         {
@@ -146,8 +146,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/third/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/third/lockfile",
+        "type": "unknown"
       },
       "packages": [
         {
@@ -193,8 +193,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -215,8 +215,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": [
         {
@@ -246,8 +246,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/third/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/third/lockfile",
+        "type": "unknown"
       },
       "packages": [
         {
@@ -291,8 +291,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -312,8 +312,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": [
         {
@@ -343,8 +343,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/third/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/third/lockfile",
+        "type": "unknown"
       },
       "packages": [
         {
@@ -393,8 +393,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -418,8 +418,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": [
         {
@@ -453,8 +453,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/third/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/third/lockfile",
+        "type": "unknown"
       },
       "packages": [
         {
@@ -503,22 +503,22 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": []
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": []
     },
     {
       "source": {
-        "path": "path/to/my/third/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/third/lockfile",
+        "type": "unknown"
       },
       "packages": []
     }
@@ -555,8 +555,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": []
     }
@@ -578,8 +578,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -612,8 +612,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -643,8 +643,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -677,8 +677,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -716,8 +716,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -753,8 +753,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -788,13 +788,89 @@
 
 ---
 
+[TestPrintJSONResults_WithLicenseViolations/one_source_with_one_package_with_both_a_version_and_a_commit_and_one_license_violation - 1]
+{
+  "results": [
+    {
+      "source": {
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "mine1",
+            "version": "1.2.3",
+            "ecosystem": "npm",
+            "commit": "abc123"
+          },
+          "licenses": [
+            "MIT"
+          ],
+          "license_violations": [
+            "MIT"
+          ]
+        }
+      ]
+    }
+  ],
+  "experimental_config": {
+    "licenses": {
+      "summary": false,
+      "allowlist": [
+        "ISC"
+      ]
+    }
+  }
+}
+
+---
+
+[TestPrintJSONResults_WithLicenseViolations/one_source_with_one_package_with_just_a_commit_and_one_license_violation - 1]
+{
+  "results": [
+    {
+      "source": {
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "mine1",
+            "version": "",
+            "ecosystem": "npm",
+            "commit": "abc123"
+          },
+          "licenses": [
+            "MIT"
+          ],
+          "license_violations": [
+            "MIT"
+          ]
+        }
+      ]
+    }
+  ],
+  "experimental_config": {
+    "licenses": {
+      "summary": false,
+      "allowlist": [
+        "ISC"
+      ]
+    }
+  }
+}
+
+---
+
 [TestPrintJSONResults_WithLicenseViolations/two_sources_with_packages,_one_license_violation - 1]
 {
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -814,8 +890,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": [
         {
@@ -848,8 +924,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -883,7 +959,7 @@
                   "unimportant": false
                 }
               },
-              "max_severity": ""
+              "max_severity": "7.8"
             }
           ],
           "licenses": [
@@ -897,8 +973,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": [
         {
@@ -953,8 +1029,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/third/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/third/lockfile",
+        "type": "unknown"
       },
       "packages": [
         {
@@ -1031,8 +1107,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -1074,8 +1150,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": [
         {
@@ -1124,8 +1200,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/third/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/third/lockfile",
+        "type": "unknown"
       },
       "packages": [
         {
@@ -1191,13 +1267,239 @@
 
 ---
 
+[TestPrintJSONResults_WithMixedIssues/multiple_sources_with_a_mixed_count_of_packages_with_versions_and_commits,_some_vulnerabilities_and_license_violations - 1]
+{
+  "results": [
+    {
+      "source": {
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "mine1",
+            "version": "1.2.3",
+            "ecosystem": "npm",
+            "commit": "abcxzy"
+          },
+          "vulnerabilities": [
+            {
+              "modified": "0001-01-01T00:00:00Z",
+              "id": "OSV-1",
+              "summary": "Something scary!",
+              "severity": [
+                {
+                  "type": "high",
+                  "score": "1"
+                }
+              ]
+            }
+          ],
+          "groups": [
+            {
+              "ids": [
+                "OSV-1"
+              ],
+              "aliases": null,
+              "max_severity": ""
+            }
+          ],
+          "licenses": [
+            "MIT"
+          ],
+          "license_violations": [
+            "MIT"
+          ]
+        }
+      ]
+    },
+    {
+      "source": {
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "mine2",
+            "version": "",
+            "ecosystem": "npm",
+            "commit": "abc123"
+          },
+          "vulnerabilities": [
+            {
+              "modified": "0001-01-01T00:00:00Z",
+              "id": "OSV-2",
+              "summary": "Something less scary!",
+              "severity": [
+                {
+                  "type": "low",
+                  "score": "1"
+                }
+              ]
+            }
+          ],
+          "groups": [
+            {
+              "ids": [
+                "OSV-2"
+              ],
+              "aliases": null,
+              "max_severity": ""
+            }
+          ],
+          "licenses": [
+            "ISC"
+          ]
+        },
+        {
+          "package": {
+            "name": "mine3",
+            "version": "0.4.1",
+            "ecosystem": "npm"
+          },
+          "licenses": [
+            "ISC"
+          ]
+        }
+      ]
+    },
+    {
+      "source": {
+        "path": "<rootdir>/path/to/my/third/lockfile",
+        "type": "unknown"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "mine1",
+            "version": "1.3.5",
+            "ecosystem": "npm"
+          },
+          "licenses": [
+            "MIT"
+          ],
+          "license_violations": [
+            "MIT"
+          ]
+        },
+        {
+          "package": {
+            "name": "mine1",
+            "version": "1.2.3",
+            "ecosystem": "npm"
+          },
+          "vulnerabilities": [
+            {
+              "modified": "0001-01-01T00:00:00Z",
+              "id": "OSV-1",
+              "summary": "Something scary!",
+              "severity": [
+                {
+                  "type": "high",
+                  "score": "1"
+                }
+              ]
+            }
+          ],
+          "groups": [
+            {
+              "ids": [
+                "OSV-1"
+              ],
+              "aliases": null,
+              "max_severity": ""
+            }
+          ],
+          "licenses": [
+            "Apache-2.0"
+          ],
+          "license_violations": [
+            "Apache-2.0"
+          ]
+        }
+      ]
+    }
+  ],
+  "experimental_config": {
+    "licenses": {
+      "summary": false,
+      "allowlist": [
+        "ISC"
+      ]
+    }
+  }
+}
+
+---
+
+[TestPrintJSONResults_WithMixedIssues/one_source_in_working_directory_with_one_package,_one_vulnerability,_and_one_license_violation - 1]
+{
+  "results": [
+    {
+      "source": {
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "mine1",
+            "version": "1.2.3",
+            "ecosystem": "npm"
+          },
+          "vulnerabilities": [
+            {
+              "modified": "0001-01-01T00:00:00Z",
+              "id": "OSV-1",
+              "summary": "Something scary!",
+              "severity": [
+                {
+                  "type": "high",
+                  "score": "1"
+                }
+              ]
+            }
+          ],
+          "groups": [
+            {
+              "ids": [
+                "OSV-1"
+              ],
+              "aliases": null,
+              "max_severity": ""
+            }
+          ],
+          "licenses": [
+            "MIT"
+          ],
+          "license_violations": [
+            "MIT"
+          ]
+        }
+      ]
+    }
+  ],
+  "experimental_config": {
+    "licenses": {
+      "summary": false,
+      "allowlist": [
+        "ISC"
+      ]
+    }
+  }
+}
+
+---
+
 [TestPrintJSONResults_WithMixedIssues/one_source_with_one_package,_one_called_vulnerability,_and_one_license_violation - 1]
 {
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -1261,8 +1563,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -1326,8 +1628,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -1385,8 +1687,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -1425,8 +1727,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": [
         {
@@ -1462,8 +1764,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -1550,8 +1852,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": [
         {
@@ -1654,8 +1956,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -1738,8 +2040,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": [
         {
@@ -1836,8 +2138,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -1851,8 +2153,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": [
         {
@@ -1873,8 +2175,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/third/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/third/lockfile",
+        "type": "unknown"
       },
       "packages": [
         {
@@ -1909,8 +2211,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -1946,8 +2248,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": [
         {
@@ -1990,8 +2292,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/third/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/third/lockfile",
+        "type": "unknown"
       },
       "packages": [
         {
@@ -2048,8 +2350,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -2132,8 +2434,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": [
         {
@@ -2207,7 +2509,7 @@
                 "OSV-3"
               ],
               "aliases": null,
-              "max_severity": ""
+              "max_severity": "4.3"
             },
             {
               "ids": [
@@ -2236,8 +2538,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -2332,8 +2634,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": [
         {
@@ -2437,27 +2739,217 @@
 
 ---
 
+[TestPrintJSONResults_WithVulnerabilities/multiple_sources_with_a_mixed_count_of_packages_across_ecosystems_using_commits_and_version,_and_multiple_vulnerabilities - 1]
+{
+  "results": [
+    {
+      "source": {
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "author1/mine1",
+            "version": "1.2.3",
+            "ecosystem": "Packagist",
+            "commit": "123abc"
+          },
+          "vulnerabilities": [
+            {
+              "modified": "0001-01-01T00:00:00Z",
+              "id": "OSV-1",
+              "summary": "Something scary!",
+              "severity": [
+                {
+                  "type": "high",
+                  "score": "1"
+                }
+              ]
+            },
+            {
+              "modified": "0001-01-01T00:00:00Z",
+              "id": "OSV-5",
+              "summary": "Something scarier!",
+              "severity": [
+                {
+                  "type": "extreme",
+                  "score": "1"
+                }
+              ]
+            }
+          ],
+          "groups": [
+            {
+              "ids": [
+                "OSV-1"
+              ],
+              "aliases": null,
+              "max_severity": ""
+            },
+            {
+              "ids": [
+                "OSV-5"
+              ],
+              "aliases": null,
+              "max_severity": ""
+            }
+          ]
+        },
+        {
+          "package": {
+            "name": "mine1",
+            "version": "",
+            "ecosystem": "npm",
+            "commit": "abcxyz"
+          },
+          "vulnerabilities": [
+            {
+              "modified": "0001-01-01T00:00:00Z",
+              "id": "OSV-1",
+              "summary": "Something scary!",
+              "severity": [
+                {
+                  "type": "high",
+                  "score": "1"
+                }
+              ]
+            }
+          ],
+          "groups": [
+            {
+              "ids": [
+                "OSV-1"
+              ],
+              "aliases": null,
+              "max_severity": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "source": {
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "mine2",
+            "version": "3.2.5",
+            "ecosystem": "NuGet"
+          },
+          "dependency_groups": [
+            "dev"
+          ],
+          "vulnerabilities": [
+            {
+              "modified": "0001-01-01T00:00:00Z",
+              "id": "OSV-2",
+              "summary": "Something less scary!",
+              "severity": [
+                {
+                  "type": "low",
+                  "score": "1"
+                }
+              ]
+            }
+          ],
+          "groups": [
+            {
+              "ids": [
+                "OSV-2"
+              ],
+              "aliases": null,
+              "max_severity": ""
+            }
+          ]
+        },
+        {
+          "package": {
+            "name": "author3/mine3",
+            "version": "0.4.1",
+            "ecosystem": "Packagist"
+          },
+          "dependency_groups": [
+            "build"
+          ],
+          "vulnerabilities": [
+            {
+              "modified": "0001-01-01T00:00:00Z",
+              "id": "OSV-3",
+              "summary": "Something mildly scary!",
+              "severity": [
+                {
+                  "type": "medium",
+                  "score": "1"
+                }
+              ]
+            },
+            {
+              "modified": "0001-01-01T00:00:00Z",
+              "id": "OSV-5",
+              "summary": "Something scarier!",
+              "severity": [
+                {
+                  "type": "extreme",
+                  "score": "1"
+                }
+              ]
+            }
+          ],
+          "groups": [
+            {
+              "ids": [
+                "OSV-3"
+              ],
+              "aliases": null,
+              "max_severity": ""
+            },
+            {
+              "ids": [
+                "OSV-5"
+              ],
+              "aliases": null,
+              "max_severity": ""
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "experimental_config": {
+    "licenses": {
+      "summary": false,
+      "allowlist": null
+    }
+  }
+}
+
+---
+
 [TestPrintJSONResults_WithVulnerabilities/multiple_sources_with_no_packages - 1]
 {
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": []
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": []
     },
     {
       "source": {
-        "path": "path/to/my/third/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/third/lockfile",
+        "type": "unknown"
       },
       "packages": []
     }
@@ -2490,8 +2982,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": []
     }
@@ -2511,8 +3003,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -2540,8 +3032,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -2616,13 +3108,64 @@
 
 ---
 
+[TestPrintJSONResults_WithVulnerabilities/one_source_with_one_package,_one_vulnerability,_and_a_max_severity - 1]
+{
+  "results": [
+    {
+      "source": {
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "mine1",
+            "version": "1.2.3",
+            "ecosystem": "npm"
+          },
+          "vulnerabilities": [
+            {
+              "modified": "0001-01-01T00:00:00Z",
+              "id": "OSV-1",
+              "summary": "Something scary!",
+              "severity": [
+                {
+                  "type": "high",
+                  "score": "1"
+                }
+              ]
+            }
+          ],
+          "groups": [
+            {
+              "ids": [
+                "OSV-1"
+              ],
+              "aliases": null,
+              "max_severity": "9"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "experimental_config": {
+    "licenses": {
+      "summary": false,
+      "allowlist": null
+    }
+  }
+}
+
+---
+
 [TestPrintJSONResults_WithVulnerabilities/one_source_with_one_package_and_one_called_vulnerability - 1]
 {
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -2678,8 +3221,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -2735,8 +3278,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -2786,8 +3329,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -2840,8 +3383,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -2910,13 +3453,82 @@
 
 ---
 
-[TestPrintJSONResults_WithVulnerabilities/one_source_with_one_package_and_two_aliases_of_a_single_vulnerability - 1]
+[TestPrintJSONResults_WithVulnerabilities/one_source_with_one_package_and_two_aliases_of_a_single_vulnerability_with_a_max_severity - 1]
 {
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "mine1",
+            "version": "1.2.3",
+            "ecosystem": "npm"
+          },
+          "vulnerabilities": [
+            {
+              "modified": "0001-01-01T00:00:00Z",
+              "id": "OSV-1",
+              "summary": "Something scary!",
+              "severity": [
+                {
+                  "type": "high",
+                  "score": "1"
+                }
+              ]
+            },
+            {
+              "modified": "0001-01-01T00:00:00Z",
+              "id": "GHSA-123",
+              "aliases": [
+                "OSV-1"
+              ],
+              "summary": "Something scary!",
+              "severity": [
+                {
+                  "type": "high",
+                  "score": "1"
+                }
+              ]
+            }
+          ],
+          "groups": [
+            {
+              "ids": [
+                "OSV-1",
+                "GHSA-123"
+              ],
+              "aliases": [
+                "OSV-1",
+                "GHSA-123"
+              ],
+              "max_severity": "8.3"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "experimental_config": {
+    "licenses": {
+      "summary": false,
+      "allowlist": null
+    }
+  }
+}
+
+---
+
+[TestPrintJSONResults_WithVulnerabilities/one_source_with_one_package_and_two_aliases_of_a_single_vulnerability_without_a_max_severity - 1]
+{
+  "results": [
+    {
+      "source": {
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -2979,13 +3591,117 @@
 
 ---
 
+[TestPrintJSONResults_WithVulnerabilities/one_source_with_one_package_with_both_a_version_and_commit_and_one_vulnerability - 1]
+{
+  "results": [
+    {
+      "source": {
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "mine1",
+            "version": "1.2.3",
+            "ecosystem": "npm",
+            "commit": "abc123"
+          },
+          "vulnerabilities": [
+            {
+              "modified": "0001-01-01T00:00:00Z",
+              "id": "OSV-1",
+              "summary": "Something scary!",
+              "severity": [
+                {
+                  "type": "high",
+                  "score": "1"
+                }
+              ]
+            }
+          ],
+          "groups": [
+            {
+              "ids": [
+                "OSV-1"
+              ],
+              "aliases": null,
+              "max_severity": ""
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "experimental_config": {
+    "licenses": {
+      "summary": false,
+      "allowlist": null
+    }
+  }
+}
+
+---
+
+[TestPrintJSONResults_WithVulnerabilities/one_source_with_one_package_with_just_a_commit_and_one_vulnerability - 1]
+{
+  "results": [
+    {
+      "source": {
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "mine1",
+            "version": "",
+            "ecosystem": "npm",
+            "commit": "abc123"
+          },
+          "vulnerabilities": [
+            {
+              "modified": "0001-01-01T00:00:00Z",
+              "id": "OSV-1",
+              "summary": "Something scary!",
+              "severity": [
+                {
+                  "type": "high",
+                  "score": "1"
+                }
+              ]
+            }
+          ],
+          "groups": [
+            {
+              "ids": [
+                "OSV-1"
+              ],
+              "aliases": null,
+              "max_severity": ""
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "experimental_config": {
+    "licenses": {
+      "summary": false,
+      "allowlist": null
+    }
+  }
+}
+
+---
+
 [TestPrintJSONResults_WithVulnerabilities/one_source_with_vulnerabilities,_some_missing_content - 1]
 {
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -3051,8 +3767,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -3088,8 +3804,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": [
         {
@@ -3117,8 +3833,8 @@
   "results": [
     {
       "source": {
-        "path": "path/to/my/first/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/first/lockfile",
+        "type": "lockfile"
       },
       "packages": [
         {
@@ -3154,8 +3870,8 @@
     },
     {
       "source": {
-        "path": "path/to/my/second/lockfile",
-        "type": ""
+        "path": "<rootdir>/path/to/my/second/lockfile",
+        "type": "sbom"
       },
       "packages": [
         {
