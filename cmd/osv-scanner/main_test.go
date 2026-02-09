@@ -13,7 +13,12 @@ func Test_run(t *testing.T) {
 		{
 			Name: "",
 			Args: []string{""},
-			Exit: 0,
+			Exit: 127,
+		},
+		{
+			Name: "",
+			Args: []string{"--help"},
+			Exit: 127,
 		},
 		{
 			Name: "version",
@@ -33,23 +38,25 @@ func Test_run(t *testing.T) {
 func Test_run_SubCommands(t *testing.T) {
 	t.Parallel()
 
+	client := testcmd.InsertCassette(t)
+
 	tests := []testcmd.Case{
 		// without subcommands
 		{
 			Name: "with no subcommand",
-			Args: []string{"", "./fixtures/locks-many/composer.lock"},
+			Args: []string{"", "./testdata/locks-many/composer.lock"},
 			Exit: 0,
 		},
 		// with scan subcommand
 		{
 			Name: "with scan subcommand",
-			Args: []string{"", "scan", "./fixtures/locks-many/composer.lock"},
+			Args: []string{"", "scan", "./testdata/locks-many/composer.lock"},
 			Exit: 0,
 		},
 		// scan with a flag
 		{
 			Name: "scan with a flag",
-			Args: []string{"", "scan", "--recursive", "./fixtures/locks-one-with-nested"},
+			Args: []string{"", "scan", "--recursive", "./testdata/locks-one-with-nested"},
 			Exit: 0,
 		},
 		// TODO: add tests for other future subcommands
@@ -57,6 +64,8 @@ func Test_run_SubCommands(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
+
+			tt.HTTPClient = testcmd.WithTestNameHeader(t, *client)
 
 			testcmd.RunAndMatchSnapshots(t, tt)
 		})

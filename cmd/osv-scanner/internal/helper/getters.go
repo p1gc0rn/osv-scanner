@@ -2,6 +2,7 @@ package helper
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/google/osv-scanner/v2/internal/spdx"
@@ -32,29 +33,28 @@ func GetScanLicensesAllowlist(cmd *cli.Command) ([]string, error) {
 }
 
 func GetCommonScannerActions(cmd *cli.Command, scanLicensesAllowlist []string) osvscanner.ScannerActions {
-	return osvscanner.ScannerActions{
-		IncludeGitRoot:     cmd.Bool("include-git-root"),
-		ConfigOverridePath: cmd.String("config"),
-		ShowAllPackages:    cmd.Bool("all-packages"),
-		ShowAllVulns:       cmd.Bool("all-vulns"),
+	callAnalysisStates := CreateCallAnalysisStates(cmd.StringSlice("call-analysis"), cmd.StringSlice("no-call-analysis"))
 
+	return osvscanner.ScannerActions{
+		IncludeGitRoot:        cmd.Bool("include-git-root"),
+		ConfigOverridePath:    cmd.String("config"),
+		ShowAllPackages:       cmd.Bool("all-packages"),
+		ShowAllVulns:          cmd.Bool("all-vulns"),
 		CompareOffline:        cmd.Bool("offline-vulnerabilities"),
 		DownloadDatabases:     cmd.Bool("download-offline-databases"),
 		LocalDBPath:           cmd.String("local-db-path"),
 		ScanLicensesSummary:   cmd.IsSet("licenses"),
 		ScanLicensesAllowlist: scanLicensesAllowlist,
+		CallAnalysisStates:    callAnalysisStates,
 	}
 }
 
-func GetExperimentalScannerActions(cmd *cli.Command) osvscanner.ExperimentalScannerActions {
+func GetExperimentalScannerActions(cmd *cli.Command, client *http.Client) osvscanner.ExperimentalScannerActions {
 	return osvscanner.ExperimentalScannerActions{
-		Extractors: ResolveEnabledExtractors(
-			cmd.StringSlice("experimental-extractors"),
-			cmd.StringSlice("experimental-disable-extractors"),
-		),
-		Detectors: ResolveEnabledDetectors(
-			cmd.StringSlice("experimental-detectors"),
-			cmd.StringSlice("experimental-disable-detectors"),
-		),
+		PluginsEnabled:         cmd.StringSlice("experimental-plugins"),
+		PluginsDisabled:        cmd.StringSlice("experimental-disable-plugins"),
+		PluginsNoDefaults:      cmd.Bool("experimental-no-default-plugins"),
+		HTTPClient:             client,
+		FlagDeprecatedPackages: cmd.Bool("experimental-flag-deprecated-packages"),
 	}
 }

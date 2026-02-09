@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/osv-scanner/v2/internal/imodels/ecosystem"
+	"github.com/google/osv-scalibr/inventory/osvecosystem"
 	depgroups "github.com/google/osv-scanner/v2/internal/utility/depgroup"
 	"github.com/google/osv-scanner/v2/internal/utility/results"
 	"github.com/google/osv-scanner/v2/internal/utility/severity"
@@ -51,6 +51,12 @@ func PrintTableResults(vulnResult *models.VulnerabilityResults, outputWriter io.
 		if len(licenseConfig.Allowlist) > 0 {
 			buildLicenseViolationsTable(outputWriter, terminalWidth, vulnResult)
 		}
+
+		// Render deprecated packages if any.
+		if outputResult.PkgDeprecatedCount > 0 {
+			printPkgDeprecatedSummary(outputResult, outputWriter)
+			buildDeprecatedPackagesTable(outputWriter, terminalWidth, vulnResult)
+		}
 	}
 }
 
@@ -90,7 +96,7 @@ func tableBuilder(outputTable table.Writer, result Result, showAllVulns bool) ta
 	}
 
 	unimportantRows := tableBuilderInner(result, VulnTypeUnimportant)
-	if len(unimportantRows) != 0 {
+	if showAllVulns && len(unimportantRows) != 0 {
 		outputTable.AppendSeparator()
 		outputTable.AppendRow(table.Row{"Unimportant vulnerabilities"})
 		outputTable.AppendSeparator()
@@ -107,11 +113,14 @@ func printSummaryResult(result Result, outputWriter io.Writer, terminalWidth int
 	// Add a newline to separate results from logs.
 	fmt.Fprintln(outputWriter)
 	if result.IsContainerScanning {
-		fmt.Fprintf(outputWriter, "Container Scanning Result (%s):\n", result.ImageInfo.OS)
+		fmt.Fprintf(outputWriter, "%s:\n", GetContainerScanningHeader(result))
 	} else {
 		fmt.Fprint(outputWriter, "Scanning Result (package view):\n")
 	}
 	printSummary(result, outputWriter)
+	if result.PkgDeprecatedCount > 0 {
+		printPkgDeprecatedSummary(result, outputWriter)
+	}
 	// Add a newline
 	fmt.Fprintln(outputWriter)
 
@@ -125,7 +134,7 @@ func printSummaryResult(result Result, outputWriter io.Writer, terminalWidth int
 		}
 
 		for _, source := range eco.Sources {
-			if source.PackageTypeCount.Regular == 0 {
+			if source.PackageTypeCount.Regular == 0 && source.PkgDeprecatedCount == 0 {
 				continue
 			}
 			outputTable := newTable(outputWriter, terminalWidth)
@@ -149,9 +158,13 @@ func printSummaryResult(result Result, outputWriter io.Writer, terminalWidth int
 				tableHeader = append(tableHeader, "License Violations")
 			}
 
+			if source.PkgDeprecatedCount > 0 {
+				tableHeader = append(tableHeader, "Deprecated")
+			}
+
 			outputTable.AppendHeader(tableHeader)
 			for _, pkg := range source.Packages {
-				if pkg.VulnCount.AnalysisCount.Regular == 0 && len(pkg.LicenseViolations) == 0 {
+				if pkg.VulnCount.AnalysisCount.Regular == 0 && len(pkg.LicenseViolations) == 0 && !pkg.Deprecated {
 					continue
 				}
 				outputRow := table.Row{}
@@ -191,6 +204,15 @@ func printSummaryResult(result Result, outputWriter io.Writer, terminalWidth int
 						outputRow = append(outputRow, pkg.LicenseViolations)
 					}
 				}
+
+				if source.PkgDeprecatedCount > 0 {
+					if pkg.Deprecated {
+						outputRow = append(outputRow, "True")
+					} else {
+						outputRow = append(outputRow, "--")
+					}
+				}
+
 				outputTable.AppendRow(outputRow)
 			}
 			outputTable.Render()
@@ -305,7 +327,7 @@ func tableBuilderInner(result Result, vulnAnalysisType VulnAnalysisType) []tbInn
 						name := pkg.Name
 
 						// TODO(#1646): Migrate this earlier to the result struct directly
-						if depgroups.IsDevGroup(ecosystem.MustParse(eco.Name).Ecosystem, pkg.DepGroups) {
+						if depgroups.IsDevGroup(osvecosystem.MustParse(eco.Name).Ecosystem, pkg.DepGroups) {
 							name += " (dev)"
 						}
 						outputRow = append(outputRow, name)
@@ -342,10 +364,10 @@ func tableBuilderInner(result Result, vulnAnalysisType VulnAnalysisType) []tbInn
 func MaxSeverity(group models.GroupInfo, pkg models.PackageVulns) string {
 	var maxSeverity float64 = -1
 	for _, vulnID := range group.IDs {
-		var severities []osvschema.Severity
+		var severities []*osvschema.Severity
 		for _, vuln := range pkg.Vulnerabilities {
-			if vuln.ID == vulnID {
-				severities = vuln.Severity
+			if vuln.GetId() == vulnID {
+				severities = vuln.GetSeverity()
 			}
 		}
 		score, _, _ := severity.CalculateOverallScore(severities)
@@ -405,6 +427,41 @@ func licenseViolationsTableBuilder(outputTable table.Writer, vulnResult *models.
 			}
 			outputTable.AppendRow(table.Row{
 				strings.Join(violations, ", "),
+				pkg.Package.Ecosystem,
+				pkg.Package.Name,
+				pkg.Package.Version,
+				path,
+			})
+		}
+	}
+
+	return outputTable
+}
+
+func buildDeprecatedPackagesTable(outputWriter io.Writer, terminalWidth int, vulnResult *models.VulnerabilityResults) {
+	outputTable := newTable(outputWriter, terminalWidth)
+	outputTable = deprecatedPackagesTableBuilder(outputTable, vulnResult)
+
+	if outputTable.Length() == 0 {
+		return
+	}
+	outputTable.Render()
+}
+
+func deprecatedPackagesTableBuilder(outputTable table.Writer, vulnResult *models.VulnerabilityResults) table.Writer {
+	outputTable.SetTitle("Deprecated packages")
+	outputTable.AppendHeader(table.Row{"Ecosystem", "Package", "Version", "Source"})
+	workingDir := mustGetWorkingDirectory()
+	for _, pkgSource := range vulnResult.Results {
+		for _, pkg := range pkgSource.Packages {
+			if !pkg.Package.Deprecated {
+				continue
+			}
+			path := pkgSource.Source.Path
+			if simplifiedPath, err := filepath.Rel(workingDir, pkgSource.Source.Path); err == nil {
+				path = simplifiedPath
+			}
+			outputTable.AppendRow(table.Row{
 				pkg.Package.Ecosystem,
 				pkg.Package.Name,
 				pkg.Package.Version,

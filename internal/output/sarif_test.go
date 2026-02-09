@@ -22,7 +22,7 @@ func TestPrintSARIFReport(t *testing.T) {
 		{
 			name: "",
 			args: testutility.LoadJSONFixtureWithWindowsReplacements[models.VulnerabilityResults](t,
-				"fixtures/test-vuln-results-a.json",
+				"testdata/test-vuln-results-a.json",
 				map[string]string{
 					"/path/to/sub-rust-project/Cargo.lock": "D:\\\\path\\\\to\\\\sub-rust-project\\\\Cargo.lock",
 					"/path/to/go.mod":                      "D:\\\\path\\\\to\\\\go.mod",
@@ -123,8 +123,15 @@ func buildJSONSarifReport(t *testing.T, res *models.VulnerabilityResults) map[st
 		t.Errorf("Error writing SARIF output: %s", err)
 	}
 
+	replacedJSON := testutility.ReplaceJSONInput(
+		t,
+		outputWriter.String(),
+		testutility.ReplacePartialFingerprintHash.Path,
+		testutility.ReplacePartialFingerprintHash.ReplaceFunc,
+	)
+
 	jsonStructure := map[string]any{}
-	err = json.NewDecoder(outputWriter).Decode(&jsonStructure)
+	err = json.NewDecoder(bytes.NewBufferString(replacedJSON)).Decode(&jsonStructure)
 	if err != nil {
 		t.Errorf("Error decoding SARIF output: %s", err)
 	}

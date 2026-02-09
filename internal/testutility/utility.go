@@ -2,6 +2,7 @@ package testutility
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"runtime"
 	"strings"
@@ -36,7 +37,16 @@ func applyWindowsReplacements(content string, replacements map[string]string) st
 
 // CleanSnapshots ensures that snapshots are relevant and sorted for consistency
 func CleanSnapshots(m *testing.M) {
-	snaps.Clean(m, snaps.CleanOpts{Sort: true})
+	dirty, err := snaps.Clean(m, snaps.CleanOpts{Sort: true})
+
+	if err != nil {
+		fmt.Println("Error cleaning snaps:", err)
+		os.Exit(1)
+	}
+	if dirty {
+		fmt.Println("Some snapshots were outdated.")
+		os.Exit(1)
+	}
 }
 
 // Skip is equivalent to t.Log followed by t.SkipNow, but allows tracking of
@@ -68,11 +78,22 @@ func IsAcceptanceTesting() bool {
 // SkipIfNotAcceptanceTesting marks the test as skipped unless the test suite is
 // being run with acceptance tests enabled, as indicated by IsAcceptanceTesting,
 // or the test is being run specifically with the -run flag
+// This is used to skip tests that could require external dependencies other than go
 func SkipIfNotAcceptanceTesting(t *testing.T, reason string) {
 	t.Helper()
 
 	if !IsAcceptanceTesting() && !isThisTestRunTarget(t) {
 		Skip(t, "Skipping extended test: ", reason)
+	}
+}
+
+// SkipIfShort marks the test as skipped if the short flag is set
+// or the test is being run specifically with the -run flag
+func SkipIfShort(t *testing.T) {
+	t.Helper()
+
+	if testing.Short() && !isThisTestRunTarget(t) {
+		Skip(t, "Skipping long test: ", "Takes a while to run")
 	}
 }
 

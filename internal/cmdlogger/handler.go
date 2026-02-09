@@ -8,12 +8,17 @@ import (
 	"strings"
 )
 
+var (
+	GlobalLogger *slog.Logger
+)
+
 type Handler struct {
 	stdout             io.Writer
 	stderr             io.Writer
 	hasErrored         bool
 	everythingToStderr bool
-	Level              slog.Leveler
+	level              slog.Leveler
+	overrideHandler    slog.Handler
 
 	hasErroredBecauseInvalidConfig bool
 }
@@ -28,7 +33,7 @@ func (c *Handler) SendEverythingToStderr() {
 }
 
 func (c *Handler) SetLevel(level slog.Leveler) {
-	c.Level = level
+	c.level = level
 }
 
 func (c *Handler) writer(level slog.Level) io.Writer {
@@ -39,26 +44,45 @@ func (c *Handler) writer(level slog.Level) io.Writer {
 	return c.stdout
 }
 
-func (c *Handler) Enabled(_ context.Context, level slog.Level) bool {
+func (c *Handler) Enabled(ctx context.Context, level slog.Level) bool {
 	if level == slog.LevelError {
-		c.hasErrored = true
+		c.SetHasErrored()
 	}
 
-	return level >= c.Level.Level()
+	if c.overrideHandler != nil {
+		return c.overrideHandler.Enabled(ctx, level)
+	}
+
+	return level >= c.level.Level()
 }
 
-func (c *Handler) Handle(_ context.Context, record slog.Record) error {
+func (c *Handler) Handle(ctx context.Context, record slog.Record) error {
+	// todo: we probably want to be reporting disabled plugins in some way,
+	//  but currently our snapshot-based tests cannot handle os-dependent
+	//  output and we've got some plugins that are only available for linux
+	if strings.HasPrefix(record.Message, "Disabling plugin ") {
+		return nil
+	}
+
 	if record.Level == slog.LevelError {
-		c.hasErrored = true
+		c.SetHasErrored()
 
 		if strings.HasPrefix(record.Message, "Ignored invalid config file") {
 			c.hasErroredBecauseInvalidConfig = true
 		}
 	}
 
+	if c.overrideHandler != nil {
+		return c.overrideHandler.Handle(ctx, record)
+	}
+
 	_, err := fmt.Fprint(c.writer(record.Level), record.Message+"\n")
 
 	return err
+}
+
+func (c *Handler) SetHasErrored() {
+	c.hasErrored = true
 }
 
 // HasErrored returns true if there have been any calls to Handle with
@@ -73,11 +97,17 @@ func (c *Handler) HasErroredBecauseInvalidConfig() bool {
 	return c.hasErroredBecauseInvalidConfig
 }
 
-func (c *Handler) WithAttrs(_ []slog.Attr) slog.Handler {
+func (c *Handler) WithAttrs(a []slog.Attr) slog.Handler {
+	if c.overrideHandler != nil {
+		return c.overrideHandler.WithAttrs(a)
+	}
 	panic("not supported")
 }
 
-func (c *Handler) WithGroup(_ string) slog.Handler {
+func (c *Handler) WithGroup(g string) slog.Handler {
+	if c.overrideHandler != nil {
+		return c.overrideHandler.WithGroup(g)
+	}
 	panic("not supported")
 }
 
@@ -87,6 +117,12 @@ func New(stdout, stderr io.Writer) CmdLogger {
 	return &Handler{
 		stdout: stdout,
 		stderr: stderr,
-		Level:  slog.LevelInfo,
+		level:  slog.LevelInfo,
+	}
+}
+
+func NewOverride(overrideHandler slog.Handler) CmdLogger {
+	return &Handler{
+		overrideHandler: overrideHandler,
 	}
 }

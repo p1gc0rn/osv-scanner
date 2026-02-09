@@ -146,6 +146,14 @@ func BuildCommonScanFlags(defaultExtractors []string) []cli.Flag {
 			Usage:  "sets the path that local databases should be stored",
 			Hidden: true,
 		},
+		&cli.StringSliceFlag{
+			Name:  "call-analysis",
+			Usage: "Enable call analysis for specific languages (e.g. --call-analysis=go). Supported: go, rust (*). (*) Will run build scripts.",
+		},
+		&cli.StringSliceFlag{
+			Name:  "no-call-analysis",
+			Usage: "disables call graph analysis",
+		},
 		&cli.BoolFlag{
 			Name:  "no-resolve",
 			Usage: "disable transitive dependency resolution of manifest files",
@@ -167,22 +175,22 @@ func BuildCommonScanFlags(defaultExtractors []string) []cli.Flag {
 			Usage: "report on licenses based on an allowlist",
 			Value: &allowedLicencesFlag{},
 		},
+		&cli.BoolFlag{
+			Name:  "experimental-flag-deprecated-packages",
+			Usage: "report if package versions are deprecated",
+		},
 		&cli.StringSliceFlag{
-			Name:  "experimental-extractors",
-			Usage: "list of specific extractors and presets of extractors to use",
+			Name:  "experimental-plugins",
+			Usage: "list of specific plugins and presets of plugins to use",
 			Value: defaultExtractors,
 		},
 		&cli.StringSliceFlag{
-			Name:  "experimental-disable-extractors",
-			Usage: "list of specific extractors and presets of extractors to not use",
+			Name:  "experimental-disable-plugins",
+			Usage: "list of specific plugins and presets of plugins to not use",
 		},
-		&cli.StringSliceFlag{
-			Name:  "experimental-detectors",
-			Usage: "list of specific detectors and presets of detectors to use",
-		},
-		&cli.StringSliceFlag{
-			Name:  "experimental-disable-detectors",
-			Usage: "list of specific detectors and presets of detectors to not use",
+		&cli.BoolFlag{
+			Name:  "experimental-no-default-plugins",
+			Usage: "disable default plugins, instead using only those enabled by --experimental-plugins",
 		},
 	}
 }

@@ -5,9 +5,10 @@ import (
 	"errors"
 	"io"
 	"log/slog"
-	"strings"
+	"net/http"
 	"testing"
 
+	scalibr "github.com/google/osv-scalibr/version"
 	"github.com/google/osv-scanner/v2/internal/cmdlogger"
 	"github.com/google/osv-scanner/v2/internal/testlogger"
 	"github.com/google/osv-scanner/v2/internal/version"
@@ -20,19 +21,9 @@ var (
 	date   = "n/a"
 )
 
-type CommandBuilder = func(stdout, stderr io.Writer) *cli.Command
+type CommandBuilder = func(stdout, stderr io.Writer, client *http.Client) *cli.Command
 
-func Run(args []string, stdout, stderr io.Writer, commands []CommandBuilder) int {
-	// get rid of the extraneous space in the subcommand help template, as otherwise
-	// our snapshots will fail because it will be trailing and removed by editors
-	//
-	// todo: remove this once https://github.com/urfave/cli/pull/2140 has been released
-	cli.SubcommandHelpTemplate = strings.ReplaceAll(
-		cli.SubcommandHelpTemplate,
-		"{{if .VisibleCommands}} [command [command options]] {{end}}",
-		"{{if .VisibleCommands}} [command [command options]]{{end}}",
-	)
-
+func Run(args []string, stdout, stderr io.Writer, client *http.Client, commands []CommandBuilder) int {
 	// --- Setup Logger ---
 	logHandler := cmdlogger.New(stdout, stderr)
 
@@ -51,15 +42,21 @@ func Run(args []string, stdout, stderr io.Writer, commands []CommandBuilder) int
 	}
 	// ---
 
+	cli.HelpPrinter = func(w io.Writer, templ string, data any) {
+		cmdlogger.SetHasErrored()
+		cli.HelpPrinterCustom(w, templ, data, nil)
+	}
+
 	cli.VersionPrinter = func(cmd *cli.Command) {
 		cmdlogger.Infof("osv-scanner version: %s", cmd.Version)
+		cmdlogger.Infof("osv-scalibr version: %s", scalibr.ScannerVersion)
 		cmdlogger.Infof("commit: %s", commit)
 		cmdlogger.Infof("built at: %s", date)
 	}
 
 	cmds := make([]*cli.Command, 0, len(commands))
 	for _, cmd := range commands {
-		cmds = append(cmds, cmd(stdout, stderr))
+		cmds = append(cmds, cmd(stdout, stderr, client))
 	}
 
 	app := &cli.Command{

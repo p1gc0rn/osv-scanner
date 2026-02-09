@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.24.5-alpine3.21@sha256:6edc20586dd08dacad538c1f09984bc2aa61720be59056cf75429691f294d731
+# WARNING, this workflow is for legacy purposes. To view the current workflow see: https://github.com/google/osv-scanner-action
+FROM golang:1.25.6-alpine3.23@sha256:98e6cffc31ccc44c7c15d83df1d69891efee8115a5bb7ede2bf30a38af3e3c92
 
 RUN mkdir /src
 WORKDIR /src
@@ -25,7 +26,7 @@ COPY ./ /src/
 RUN go build -o osv-scanner ./cmd/osv-scanner/
 RUN go build -o osv-reporter ./cmd/osv-reporter/
 
-FROM alpine:3.22@sha256:4bcff63911fcb4448bd4fdacec207030997caf25e9bea4045fa6c8c44de311d1
+FROM alpine:3.23@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62
 RUN apk --no-cache add \
   ca-certificates \
   git \
@@ -41,4 +42,8 @@ COPY ./exit_code_redirect.sh ./
 
 ENV PATH="${PATH}:/root"
 
-ENTRYPOINT ["bash", "/root/exit_code_redirect.sh"]
+ENTRYPOINT [
+  "bash",
+  "-c",
+  "echo 'WARNING, this workflow is for legacy purposes. To view the current workflow see: https://github.com/google/osv-scanner-action' && /root/exit_code_redirect.sh"
+]

@@ -15,7 +15,7 @@ import (
 	"github.com/google/osv-scanner/v2/internal/imodels"
 )
 
-const osvScannerConfigName = "osv-scanner.toml"
+var OSVScannerConfigName = "osv-scanner.toml"
 
 type Manager struct {
 	// Override to replace all other configs
@@ -27,7 +27,7 @@ type Manager struct {
 }
 
 type Config struct {
-	IgnoredVulns      []IgnoreEntry          `toml:"IgnoredVulns"`
+	IgnoredVulns      []*IgnoreEntry         `toml:"IgnoredVulns"`
 	PackageOverrides  []PackageOverrideEntry `toml:"PackageOverrides"`
 	GoVersionOverride string                 `toml:"GoVersionOverride"`
 	// The path to config file that this config was loaded from,
@@ -35,10 +35,28 @@ type Config struct {
 	LoadPath string `toml:"-"`
 }
 
+func (c *Config) UnusedIgnoredVulns() []*IgnoreEntry {
+	unused := make([]*IgnoreEntry, 0, len(c.IgnoredVulns))
+
+	for _, entry := range c.IgnoredVulns {
+		if !entry.Used {
+			unused = append(unused, entry)
+		}
+	}
+
+	return unused
+}
+
 type IgnoreEntry struct {
 	ID          string    `toml:"id"`
 	IgnoreUntil time.Time `toml:"ignoreUntil"`
 	Reason      string    `toml:"reason"`
+
+	Used bool `toml:"-"`
+}
+
+func (ie *IgnoreEntry) MarkAsUsed() {
+	ie.Used = true
 }
 
 type PackageOverrideEntry struct {
@@ -83,10 +101,10 @@ type License struct {
 	Ignore   bool     `toml:"ignore"`
 }
 
-func (c *Config) ShouldIgnore(vulnID string) (bool, IgnoreEntry) {
-	index := slices.IndexFunc(c.IgnoredVulns, func(e IgnoreEntry) bool { return e.ID == vulnID })
+func (c *Config) ShouldIgnore(vulnID string) (bool, *IgnoreEntry) {
+	index := slices.IndexFunc(c.IgnoredVulns, func(e *IgnoreEntry) bool { return e.ID == vulnID })
 	if index == -1 {
-		return false, IgnoreEntry{}
+		return false, &IgnoreEntry{}
 	}
 	ignoredLine := c.IgnoredVulns[index]
 
@@ -185,6 +203,28 @@ func (c *Manager) Get(targetPath string) Config {
 	return config
 }
 
+func (c *Manager) GetUnusedIgnoreEntries() map[string][]*IgnoreEntry {
+	m := make(map[string][]*IgnoreEntry)
+
+	for _, config := range c.ConfigMap {
+		unusedEntries := config.UnusedIgnoredVulns()
+
+		if len(unusedEntries) > 0 {
+			m[config.LoadPath] = unusedEntries
+		}
+	}
+
+	if c.OverrideConfig != nil {
+		unusedEntries := c.OverrideConfig.UnusedIgnoredVulns()
+
+		if len(unusedEntries) > 0 {
+			m[c.OverrideConfig.LoadPath] = unusedEntries
+		}
+	}
+
+	return m
+}
+
 // Finds the containing folder of `target`, then appends osvScannerConfigName
 func normalizeConfigLoadPath(target string) (string, error) {
 	stat, err := os.Stat(target)
@@ -198,7 +238,7 @@ func normalizeConfigLoadPath(target string) (string, error) {
 	} else {
 		containingFolder = target
 	}
-	configPath := filepath.Join(containingFolder, osvScannerConfigName)
+	configPath := filepath.Join(containingFolder, OSVScannerConfigName)
 
 	return configPath, nil
 }

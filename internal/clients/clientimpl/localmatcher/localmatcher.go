@@ -10,9 +10,10 @@ import (
 	"path"
 
 	"github.com/google/osv-scalibr/extractor"
+	"github.com/google/osv-scalibr/inventory/osvecosystem"
 	"github.com/google/osv-scanner/v2/internal/cmdlogger"
 	"github.com/google/osv-scanner/v2/internal/imodels"
-	"github.com/google/osv-scanner/v2/internal/imodels/ecosystem"
+	"github.com/ossf/osv-schema/bindings/go/osvconstants"
 	"github.com/ossf/osv-schema/bindings/go/osvschema"
 )
 
@@ -23,10 +24,10 @@ const envKeyLocalDBCacheDirectory = "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY"
 // and performing the matching locally.
 type LocalMatcher struct {
 	dbBasePath string
-	dbs        map[osvschema.Ecosystem]*ZipDB
+	dbs        map[osvconstants.Ecosystem]*ZipDB
 	downloadDB bool
 	// failedDBs keeps track of the errors when getting databases for each ecosystem
-	failedDBs map[osvschema.Ecosystem]error
+	failedDBs map[osvconstants.Ecosystem]error
 	// userAgent sets the user agent requests for db zips are made with
 	userAgent string
 }
@@ -39,15 +40,24 @@ func NewLocalMatcher(localDBPath string, userAgent string, downloadDB bool) (*Lo
 
 	return &LocalMatcher{
 		dbBasePath: dbBasePath,
-		dbs:        make(map[osvschema.Ecosystem]*ZipDB),
+		dbs:        make(map[osvconstants.Ecosystem]*ZipDB),
 		downloadDB: downloadDB,
 		userAgent:  userAgent,
-		failedDBs:  make(map[osvschema.Ecosystem]error),
+		failedDBs:  make(map[osvconstants.Ecosystem]error),
 	}, nil
 }
 
 func (matcher *LocalMatcher) MatchVulnerabilities(ctx context.Context, invs []*extractor.Package) ([][]*osvschema.Vulnerability, error) {
 	results := make([][]*osvschema.Vulnerability, 0, len(invs))
+
+	// ensure all databases loaded so far have been fully loaded; this is just a
+	// basic safeguard since we don't actually currently attempt to reuse matchers
+	// across scans, and its possible we never will, so we don't need to be smart
+	for _, db := range matcher.dbs {
+		if db.Partial {
+			return nil, errors.New("local matcher cannot be (re)used with a partially loaded database")
+		}
+	}
 
 	for _, inv := range invs {
 		if ctx.Err() != nil {
@@ -55,27 +65,38 @@ func (matcher *LocalMatcher) MatchVulnerabilities(ctx context.Context, invs []*e
 		}
 
 		pkg := imodels.FromInventory(inv)
+		eco := pkg.Ecosystem().Ecosystem
+
 		if pkg.Ecosystem().IsEmpty() {
 			if pkg.Commit() == "" {
 				// This should never happen, as those results will be filtered out before matching
 				return nil, errors.New("ecosystem is empty and there is no commit hash")
 			}
 
-			// Is a commit based query, skip local scanning
-			results = append(results, []*osvschema.Vulnerability{})
-			// TODO (V2 logging):
-			cmdlogger.Infof("Skipping commit scanning for: %s", pkg.Commit())
+			// matching ecosystem-less versions can only be attempted if we have a version
+			if pkg.Version() == "" {
+				// Is a commit based query, skip local scanning
+				results = append(results, []*osvschema.Vulnerability{})
 
-			continue
+				// TODO (V2 logging):
+				cmdlogger.Infof("Skipping commit scanning for: %s", pkg.Commit())
+
+				continue
+			}
+
+			eco = "GIT"
 		}
 
-		db, err := matcher.loadDBFromCache(ctx, pkg.Ecosystem())
+		db, err := matcher.loadDBFromCache(ctx, eco, invs)
 
 		if err != nil {
+			// no logging here as the loader will have already done that
+			results = append(results, []*osvschema.Vulnerability{})
+
 			continue
 		}
 
-		results = append(results, VulnerabilitiesAffectingPackage(db.Vulnerabilities(false), pkg))
+		results = append(results, VulnerabilitiesAffectingPackage(db.Vulnerabilities, pkg))
 	}
 
 	return results, nil
@@ -83,33 +104,43 @@ func (matcher *LocalMatcher) MatchVulnerabilities(ctx context.Context, invs []*e
 
 // LoadEcosystem tries to preload the ecosystem into the cache, and returns an error if the ecosystem
 // cannot be loaded.
-func (matcher *LocalMatcher) LoadEcosystem(ctx context.Context, eco ecosystem.Parsed) error {
-	_, err := matcher.loadDBFromCache(ctx, eco)
+//
+// Preloaded databases include every advisory, so can be reused.
+func (matcher *LocalMatcher) LoadEcosystem(ctx context.Context, eco osvecosystem.Parsed) error {
+	_, err := matcher.loadDBFromCache(ctx, eco.Ecosystem, nil)
 
 	return err
 }
 
-func (matcher *LocalMatcher) loadDBFromCache(ctx context.Context, eco ecosystem.Parsed) (*ZipDB, error) {
-	if db, ok := matcher.dbs[eco.Ecosystem]; ok {
+func (matcher *LocalMatcher) loadDBFromCache(ctx context.Context, eco osvconstants.Ecosystem, invs []*extractor.Package) (*ZipDB, error) {
+	if db, ok := matcher.dbs[eco]; ok {
 		return db, nil
 	}
 
-	if matcher.failedDBs[eco.Ecosystem] != nil {
-		return nil, matcher.failedDBs[eco.Ecosystem]
+	if matcher.failedDBs[eco] != nil {
+		return nil, matcher.failedDBs[eco]
 	}
 
-	db, err := NewZippedDB(ctx, matcher.dbBasePath, string(eco.Ecosystem), fmt.Sprintf("%s/%s/all.zip", zippedDBRemoteHost, eco.Ecosystem), matcher.userAgent, !matcher.downloadDB)
+	db, err := NewZippedDB(
+		ctx,
+		matcher.dbBasePath,
+		string(eco),
+		fmt.Sprintf("%s/%s/all.zip", zippedDBRemoteHost, eco),
+		matcher.userAgent,
+		!matcher.downloadDB,
+		invs,
+	)
 
 	if err != nil {
-		matcher.failedDBs[eco.Ecosystem] = err
-		cmdlogger.Errorf("could not load db for %s ecosystem: %v", eco.Ecosystem, err)
+		matcher.failedDBs[eco] = err
+		cmdlogger.Errorf("could not load db for %s ecosystem: %v", eco, err)
 
 		return nil, err
 	}
 
 	cmdlogger.Infof("Loaded %s local db from %s", db.Name, db.StoredAt)
 
-	matcher.dbs[eco.Ecosystem] = db
+	matcher.dbs[eco] = db
 
 	return db, nil
 }

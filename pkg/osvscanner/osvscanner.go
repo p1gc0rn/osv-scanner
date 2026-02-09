@@ -4,24 +4,26 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"maps"
 	"net/http"
 	"os"
 	"slices"
 	"sort"
-	"strings"
 	"time"
 
-	"deps.dev/util/resolve"
 	scalibr "github.com/google/osv-scalibr"
 	"github.com/google/osv-scalibr/artifact/image/layerscanning/image"
+	"github.com/google/osv-scalibr/binary/proto"
+	cpb "github.com/google/osv-scalibr/binary/proto/config_go_proto"
 	"github.com/google/osv-scalibr/clients/datasource"
-	"github.com/google/osv-scalibr/clients/resolution"
-	"github.com/google/osv-scalibr/detector"
+	"github.com/google/osv-scalibr/enricher/packagedeprecation"
+	"github.com/google/osv-scalibr/enricher/reachability/java"
 	"github.com/google/osv-scalibr/extractor"
-	"github.com/google/osv-scalibr/extractor/filesystem"
+	"github.com/google/osv-scalibr/inventory"
+	scalibrlog "github.com/google/osv-scalibr/log"
 	"github.com/google/osv-scalibr/plugin"
-	"github.com/google/osv-scanner/v2/internal/clients/clientimpl/baseimagematcher"
+	"github.com/google/osv-scalibr/stats"
 	"github.com/google/osv-scanner/v2/internal/clients/clientimpl/licensematcher"
 	"github.com/google/osv-scanner/v2/internal/clients/clientimpl/localmatcher"
 	"github.com/google/osv-scanner/v2/internal/clients/clientimpl/osvmatcher"
@@ -32,11 +34,9 @@ import (
 	"github.com/google/osv-scanner/v2/internal/imodels"
 	"github.com/google/osv-scanner/v2/internal/imodels/results"
 	"github.com/google/osv-scanner/v2/internal/output"
-	"github.com/google/osv-scanner/v2/internal/scalibrextract"
-	"github.com/google/osv-scanner/v2/internal/version"
 	"github.com/google/osv-scanner/v2/pkg/models"
 	"github.com/google/osv-scanner/v2/pkg/osvscanner/internal/imagehelpers"
-	"github.com/ossf/osv-schema/bindings/go/osvschema"
+	"github.com/ossf/osv-schema/bindings/go/osvconstants"
 	"osv.dev/bindings/go/osvdev"
 )
 
@@ -70,10 +70,23 @@ type ScannerActions struct {
 }
 
 type ExperimentalScannerActions struct {
-	TransitiveScanningActions
+	TransitiveScanning TransitiveScanningActions
 
-	Extractors []filesystem.Extractor
-	Detectors  []detector.Detector
+	PluginsEnabled    []string
+	PluginsDisabled   []string
+	PluginsNoDefaults bool
+
+	// Currently unused.
+	// TODO(another-rex): Use or wrap this
+	StatsCollector stats.Collector
+
+	HTTPClient *http.Client
+
+	// Report deprecated packages as findings
+	FlagDeprecatedPackages bool
+
+	// Allows specifying user agent
+	RequestUserAgent string
 }
 
 type TransitiveScanningActions struct {
@@ -84,25 +97,17 @@ type TransitiveScanningActions struct {
 
 type ExternalAccessors struct {
 	// Matchers
-	VulnMatcher      clientinterfaces.VulnerabilityMatcher
-	LicenseMatcher   clientinterfaces.LicenseMatcher
-	BaseImageMatcher clientinterfaces.BaseImageMatcher
+	VulnMatcher    clientinterfaces.VulnerabilityMatcher
+	LicenseMatcher clientinterfaces.LicenseMatcher
 
-	// Required for pomxmlnet Extractor
-	MavenRegistryAPIClient *datasource.MavenRegistryAPIClient
 	// Required for vendored Extractor
 	OSVDevClient *osvdev.OSVClient
-
-	// DependencyClients is a map of implementations of DependencyClient
-	// for each ecosystem, the following is currently implemented:
-	// - [osvschema.EcosystemMaven] required for pomxmlnet Extractor
-	DependencyClients map[osvschema.Ecosystem]resolve.Client
 }
 
 // ErrNoPackagesFound for when no packages are found during a scan.
 var ErrNoPackagesFound = errors.New("no packages found in scan")
 
-// ErrVulnerabilitiesFound includes both vulnerabilities being found or license violations being found,
+// ErrVulnerabilitiesFound includes vulnerabilities, license violations, and package deprecation,
 // however, will not be raised if only uncalled vulnerabilities are found.
 var ErrVulnerabilitiesFound = errors.New("vulnerabilities found")
 
@@ -111,10 +116,13 @@ var ErrVulnerabilitiesFound = errors.New("vulnerabilities found")
 var ErrAPIFailed = errors.New("API query failed")
 
 func initializeExternalAccessors(actions ScannerActions) (ExternalAccessors, error) {
-	externalAccessors := ExternalAccessors{
-		DependencyClients: map[osvschema.Ecosystem]resolve.Client{},
-	}
+	externalAccessors := ExternalAccessors{}
 	var err error
+
+	userAgent := "osv-scanner-api"
+	if actions.RequestUserAgent != "" {
+		userAgent = actions.RequestUserAgent
+	}
 
 	// Offline Mode
 	// ------------
@@ -122,7 +130,7 @@ func initializeExternalAccessors(actions ScannerActions) (ExternalAccessors, err
 		// --- Vulnerability Matcher ---
 		externalAccessors.VulnMatcher, err =
 			localmatcher.NewLocalMatcher(actions.LocalDBPath,
-				"osv-scanner_scan/"+version.OSVVersion, actions.DownloadDatabases)
+				userAgent, actions.DownloadDatabases)
 		if err != nil {
 			return ExternalAccessors{}, err
 		}
@@ -133,11 +141,11 @@ func initializeExternalAccessors(actions ScannerActions) (ExternalAccessors, err
 	// Online Mode
 	// -----------
 	// --- Vulnerability Matcher ---
-	externalAccessors.VulnMatcher = osvmatcher.New(5*time.Minute, "osv-scanner_scan/"+version.OSVVersion)
+	externalAccessors.VulnMatcher = osvmatcher.New(5*time.Minute, userAgent, actions.HTTPClient)
 
 	// --- License Matcher ---
 	if len(actions.ScanLicensesAllowlist) > 0 || actions.ScanLicensesSummary {
-		depsDevAPIClient, err := datasource.NewCachedInsightsClient(depsdev.DepsdevAPI, "osv-scanner_scan/"+version.OSVVersion)
+		depsDevAPIClient, err := datasource.NewCachedInsightsClient(depsdev.DepsdevAPI, userAgent)
 		if err != nil {
 			return ExternalAccessors{}, err
 		}
@@ -147,45 +155,10 @@ func initializeExternalAccessors(actions ScannerActions) (ExternalAccessors, err
 		}
 	}
 
-	// --- Base Image Matcher ---
-	if actions.Image != "" {
-		externalAccessors.BaseImageMatcher = &baseimagematcher.DepsDevBaseImageMatcher{
-			HTTPClient: *http.DefaultClient,
-			Config:     baseimagematcher.DefaultConfig(),
-		}
-	}
-
 	// --- OSV.dev Client ---
 	// We create a separate client from VulnMatcher to keep things clean.
 	externalAccessors.OSVDevClient = osvdev.DefaultClient()
-
-	// --- No Transitive Scanning ---
-	if actions.Disabled {
-		return externalAccessors, nil
-	}
-
-	// --- Transitive Scanning Clients ---
-	externalAccessors.MavenRegistryAPIClient, err = datasource.NewMavenRegistryAPIClient(datasource.MavenRegistry{
-		URL:             actions.MavenRegistry,
-		ReleasesEnabled: true,
-	}, "")
-
-	if err != nil {
-		return ExternalAccessors{}, err
-	}
-
-	if !actions.NativeDataSource {
-		externalAccessors.DependencyClients[osvschema.EcosystemMaven], err = resolution.NewDepsDevClient(depsdev.DepsdevAPI, "osv-scanner_scan/"+version.OSVVersion)
-	} else {
-		externalAccessors.DependencyClients[osvschema.EcosystemMaven], err = resolution.NewMavenRegistryClient(actions.MavenRegistry, "")
-	}
-
-	// We only support native registry client for PyPI.
-	externalAccessors.DependencyClients[osvschema.EcosystemPyPI] = resolution.NewPyPIRegistryClient("")
-
-	if err != nil {
-		return ExternalAccessors{}, err
-	}
+	externalAccessors.OSVDevClient.Config.UserAgent = userAgent
 
 	return externalAccessors, nil
 }
@@ -236,7 +209,7 @@ func DoScan(actions ScannerActions) (models.VulnerabilityResults, error) {
 	scanResult.GenericFindings = packagesAndFindings.GenericFindings
 
 	// ----- Filtering -----
-	filterUnscannablePackages(&scanResult)
+	unscannablePackages := filterUnscannablePackages(&scanResult, actions)
 	filterIgnoredPackages(&scanResult)
 
 	// ----- Custom Overrides -----
@@ -258,22 +231,11 @@ func DoScan(actions ScannerActions) (models.VulnerabilityResults, error) {
 		}
 	}
 
-	vulnerabilityResults := buildVulnerabilityResults(actions, &scanResult)
-
-	if actions.ScanLicensesSummary {
-		vulnerabilityResults.LicenseSummary = buildLicenseSummary(&scanResult)
+	if len(unscannablePackages) > 0 {
+		scanResult.PackageScanResults = slices.Concat(scanResult.PackageScanResults, unscannablePackages)
 	}
 
-	filtered := filterResults(&vulnerabilityResults, &scanResult.ConfigManager, actions.ShowAllPackages)
-	if filtered > 0 {
-		cmdlogger.Infof(
-			"Filtered %d %s from output",
-			filtered,
-			output.Form(filtered, "vulnerability", "vulnerabilities"),
-		)
-	}
-
-	return vulnerabilityResults, determineReturnErr(vulnerabilityResults, actions.ShowAllVulns, false)
+	return finalizeScanResult(scanResult, actions)
 }
 
 func DoContainerScan(actions ScannerActions) (models.VulnerabilityResults, error) {
@@ -298,14 +260,44 @@ func DoContainerScan(actions ScannerActions) (models.VulnerabilityResults, error
 		return models.VulnerabilityResults{}, fmt.Errorf("failed to initialize accessors: %w", err)
 	}
 
+	plugins := getPlugins(
+		[]string{"artifact"},
+		accessors,
+		actions,
+	)
+
+	// technically having one detector enabled would also be sufficient, but we're
+	// not mentioning them to avoid confusion since they're still in their infancy
+	if countNotEnrichers(plugins) == 0 {
+		return models.VulnerabilityResults{}, errors.New("at least one extractor must be enabled")
+	}
+
+	if actions.CallAnalysisStates["jar"] {
+		plugins = append(plugins, java.NewDefault())
+	}
+
+	if actions.FlagDeprecatedPackages {
+		p, err := packagedeprecation.New(&cpb.PluginConfig{
+			UserAgent: actions.RequestUserAgent,
+		})
+		if err != nil {
+			cmdlogger.Errorf("Failed to enable packagedeprecation enricher: %v", err)
+		} else {
+			plugins = append(plugins, p)
+		}
+	}
+
 	// --- Initialize Image To Scan ---'
+
+	// TODO: Setup context at the start of the run
+	ctx := context.TODO()
 
 	var img *image.Image
 	if actions.IsImageArchive {
 		cmdlogger.Infof("Scanning local image tarball %q", actions.Image)
 		img, err = image.FromTarball(actions.Image, image.DefaultConfig())
 	} else if actions.Image != "" {
-		path, exportErr := imagehelpers.ExportDockerImage(actions.Image)
+		path, exportErr := imagehelpers.ExportDockerImage(ctx, actions.Image)
 		if exportErr != nil {
 			return models.VulnerabilityResults{}, exportErr
 		}
@@ -325,57 +317,56 @@ func DoContainerScan(actions ScannerActions) (models.VulnerabilityResults, error
 		}
 	}()
 
-	filesystemExtractors := getExtractors(
-		scalibrextract.ExtractorsArtifacts,
-		accessors,
-		actions,
-	)
-
-	plugins := make([]plugin.Plugin, len(filesystemExtractors)+len(actions.Detectors))
-	for i, ext := range filesystemExtractors {
-		plugins[i] = ext.(plugin.Plugin)
-	}
-
-	for i, det := range actions.Detectors {
-		plugins[i+len(filesystemExtractors)] = det.(plugin.Plugin)
-	}
-
 	capabilities := &plugin.Capabilities{
 		DirectFS:      true,
 		RunningSystem: false,
+		Network:       plugin.NetworkOnline,
 		OS:            plugin.OSLinux,
 	}
+
+	if actions.CompareOffline {
+		capabilities.Network = plugin.NetworkOffline
+	}
+
 	plugins = plugin.FilterByCapabilities(plugins, capabilities)
 
 	// --- Do Scalibr Scan ---
 	scanner := scalibr.New()
 	scalibrSR, err := scanner.ScanContainer(context.Background(), img, &scalibr.ScanConfig{
-		Plugins:      plugins,
-		Capabilities: capabilities,
+		Plugins:           plugins,
+		Capabilities:      capabilities,
+		StoreAbsolutePath: true,
+		ExplicitPlugins:   true,
 	})
 	if err != nil {
 		return models.VulnerabilityResults{}, fmt.Errorf("failed to scan container image: %w", err)
 	}
 
-	if scalibrSR.Inventory.IsEmpty() {
+	if inventoryIsEmpty(scalibrSR.Inventory) {
 		return models.VulnerabilityResults{}, ErrNoPackagesFound
 	}
 
 	// --- Save Scalibr Scan Results ---
 	scanResult.PackageScanResults = make([]imodels.PackageScanResult, len(scalibrSR.Inventory.Packages))
-	for i, inv := range scalibrSR.Inventory.Packages {
-		scanResult.PackageScanResults[i].PackageInfo = imodels.FromInventory(inv)
-		scanResult.PackageScanResults[i].LayerDetails = inv.LayerDetails
+	for i, pkgs := range scalibrSR.Inventory.Packages {
+		scanResult.PackageScanResults[i].PackageInfo = imodels.FromInventory(pkgs)
+		scanResult.PackageScanResults[i].PackageInfo.ExploitabilitySignals = pkgs.ExploitabilitySignals
 	}
 
 	// --- Fill Image Metadata ---
-	scanResult.ImageMetadata, err = imagehelpers.BuildImageMetadata(img, accessors.BaseImageMatcher)
-	if err != nil { // Not getting image metadata is not fatal
-		cmdlogger.Errorf("Failed to fully get image metadata: %v", err)
+	pssr, err := proto.ScanResultToProto(scalibrSR)
+	if err != nil {
+		return models.VulnerabilityResults{}, fmt.Errorf("failed to serialize scan results to proto: %w", err)
+	}
+
+	if len(pssr.GetInventory().GetContainerImageMetadata()) > 0 {
+		scanResult.ImageMetadata = pssr.GetInventory().GetContainerImageMetadata()[0]
+	} else {
+		cmdlogger.Warnf("No container image metadata found in scan results")
 	}
 
 	// ----- Filtering -----
-	filterUnscannablePackages(&scanResult)
+	unscannablePackages := filterUnscannablePackages(&scanResult, actions)
 	filterIgnoredPackages(&scanResult)
 
 	filterNonContainerRelevantPackages(&scanResult)
@@ -396,19 +387,16 @@ func DoContainerScan(actions ScannerActions) (models.VulnerabilityResults, error
 		}
 	}
 
-	// TODO: This is a set of heuristics,
-	//    - Assume that packages under usr/ might be a OS package depending on ecosystem
-	//    - Assume python packages under dist-packages is a OS package
-	// Replace this with an actual implementation in OSV-Scalibr (potentially via full filesystem accountability).
-	for _, psr := range scanResult.PackageScanResults {
-		if (strings.HasPrefix(psr.PackageInfo.Location(), "usr/") && psr.PackageInfo.Ecosystem().Ecosystem == osvschema.EcosystemGo) ||
-			strings.Contains(psr.PackageInfo.Location(), "dist-packages/") && psr.PackageInfo.Ecosystem().Ecosystem == osvschema.EcosystemPyPI {
-			psr.PackageInfo.AnnotationsDeprecated = append(psr.PackageInfo.AnnotationsDeprecated, extractor.InsideOSPackage)
-		}
-	}
-
 	scanResult.GenericFindings = scalibrSR.Inventory.GenericFindings
 
+	if len(unscannablePackages) > 0 {
+		scanResult.PackageScanResults = slices.Concat(scanResult.PackageScanResults, unscannablePackages)
+	}
+
+	return finalizeScanResult(scanResult, actions)
+}
+
+func finalizeScanResult(scanResult results.ScanResults, actions ScannerActions) (models.VulnerabilityResults, error) {
 	vulnerabilityResults := buildVulnerabilityResults(actions, &scanResult)
 
 	if actions.ScanLicensesSummary {
@@ -424,7 +412,20 @@ func DoContainerScan(actions ScannerActions) (models.VulnerabilityResults, error
 		)
 	}
 
-	return vulnerabilityResults, determineReturnErr(vulnerabilityResults, actions.ShowAllVulns, true)
+	if unusedIgnoredEntries := scanResult.ConfigManager.GetUnusedIgnoreEntries(); len(unusedIgnoredEntries) != 0 {
+		configFiles := slices.Collect(maps.Keys(unusedIgnoredEntries))
+		slices.Sort(configFiles)
+
+		for _, configFile := range configFiles {
+			cmdlogger.Warnf("%s has unused ignores:", configFile)
+
+			for _, iv := range unusedIgnoredEntries[configFile] {
+				cmdlogger.Warnf(" - %s", iv.ID)
+			}
+		}
+	}
+
+	return vulnerabilityResults, determineReturnErr(vulnerabilityResults, actions.ShowAllVulns)
 }
 
 func buildLicenseSummary(scanResult *results.ScanResults) []models.LicenseCount {
@@ -471,31 +472,33 @@ func buildLicenseSummary(scanResult *results.ScanResults) []models.LicenseCount 
 
 // determineReturnErr determines whether we found a "vulnerability" or not,
 // and therefore whether we should return a ErrVulnerabilityFound error.
-func determineReturnErr(vulnResults models.VulnerabilityResults, showAllVulns bool, isContainerScanning bool) error {
+func determineReturnErr(vulnResults models.VulnerabilityResults, showAllVulns bool) error {
 	if len(vulnResults.Results) > 0 {
 		var vuln bool
 		onlyUnimportantVuln := true
 		var licenseViolation bool
+		deprecated := false
 		for _, vf := range vulnResults.Flatten() {
-			if vf.Vulnerability.ID != "" {
+			if vf.Vulnerability != nil && vf.Vulnerability.GetId() != "" {
 				vuln = true
 				// TODO(gongh): rewrite the logic once we support reachability analysis for container scanning.
-				if !isContainerScanning && vf.GroupInfo.IsCalled() {
-					onlyUnimportantVuln = false
-				} else if isContainerScanning && !vf.GroupInfo.IsGroupUnimportant() {
+				if vf.GroupInfo.IsCalled() && !vf.GroupInfo.IsGroupUnimportant() {
 					onlyUnimportantVuln = false
 				}
 			}
 			if len(vf.LicenseViolations) > 0 {
 				licenseViolation = true
 			}
+			if vf.Deprecated {
+				deprecated = true
+			}
 		}
 
-		if !vuln && !licenseViolation {
+		if !vuln && !licenseViolation && !deprecated {
 			return nil
 		}
 
-		onlyUnimportantVuln = onlyUnimportantVuln && vuln && !licenseViolation
+		onlyUnimportantVuln = onlyUnimportantVuln && vuln && !licenseViolation && !deprecated
 
 		// If the user didn't enable showing all vulns and we only found unimportant ones,
 		// we should return without error.
@@ -538,7 +541,7 @@ func makeVulnRequestWithMatcher(
 func overrideGoVersion(scanResults *results.ScanResults) {
 	for i, psr := range scanResults.PackageScanResults {
 		pkg := psr.PackageInfo
-		if pkg.Name() == "stdlib" && pkg.Ecosystem().Ecosystem == osvschema.EcosystemGo {
+		if pkg.Name() == "stdlib" && pkg.Ecosystem().Ecosystem == osvconstants.EcosystemGo {
 			configToUse := scanResults.ConfigManager.Get(pkg.Location())
 			if configToUse.GoVersionOverride != "" {
 				scanResults.PackageScanResults[i].PackageInfo.Package.Version = configToUse.GoVersionOverride
@@ -547,4 +550,30 @@ func overrideGoVersion(scanResults *results.ScanResults) {
 			continue
 		}
 	}
+}
+
+// SetLogger sets the global slog handler for the cmdlogger.
+func SetLogger(handler slog.Handler) {
+	baseHandler := cmdlogger.NewOverride(handler)
+	logger := slog.New(baseHandler)
+	cmdlogger.GlobalLogger = logger
+	scalibrlog.SetLogger(&cmdlogger.ScalibrAdapter{Logger: logger})
+}
+
+// inventoryIsEmpty ignores image metadata when checking if an inventory is empty
+func inventoryIsEmpty(i inventory.Inventory) bool {
+	if len(i.Packages) != 0 {
+		return false
+	}
+	if len(i.PackageVulns) != 0 {
+		return false
+	}
+	if len(i.GenericFindings) != 0 {
+		return false
+	}
+	if len(i.Secrets) != 0 {
+		return false
+	}
+
+	return true
 }

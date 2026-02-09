@@ -2,6 +2,7 @@ package sourceanalysis
 
 import (
 	"bytes"
+	"context"
 	"debug/dwarf"
 	"debug/elf"
 	"errors"
@@ -21,6 +22,7 @@ import (
 )
 
 const (
+	// RustFlagsEnv defines the flags that are required for effective source analysis:
 	// - opt-level=3 (Use the highest optimisation level (default with --release))
 	// - debuginfo=1 (Include DWARF debug info which is extracted to find which funcs are called)
 	// - embed-bitcode=yes (Required to enable LTO)
@@ -74,7 +76,7 @@ func rustAnalysis(pkgs []models.PackageVulns, source models.SourceInfo) {
 
 		for _, pv := range pkgs {
 			for _, v := range pv.Vulnerabilities {
-				for _, a := range v.Affected {
+				for _, a := range v.GetAffected() {
 					// Example of RUSTSEC function level information:
 					//
 					// "affects": {
@@ -84,10 +86,15 @@ func rustAnalysis(pkgs []models.PackageVulns, source models.SourceInfo) {
 					//     ],
 					//     "arch": []
 					// }
-					ecosystemAffects, ok := a.EcosystemSpecific["affects"].(map[string]any)
-					if !ok {
+					ecosystemSpecific := a.GetEcosystemSpecific()
+					if ecosystemSpecific == nil {
 						continue
 					}
+					ecosystemAffectsVal, ok := ecosystemSpecific.GetFields()["affects"]
+					if !ok || ecosystemAffectsVal == nil || ecosystemAffectsVal.GetStructValue() == nil {
+						continue
+					}
+					ecosystemAffects := ecosystemAffectsVal.GetStructValue().AsMap()
 					affectedFunctions, ok := ecosystemAffects["functions"].([]any)
 					if !ok {
 						continue
@@ -96,7 +103,7 @@ func rustAnalysis(pkgs []models.PackageVulns, source models.SourceInfo) {
 						if funcName, ok := f.(string); ok {
 							_, called := calls[funcName]
 							// Once one advisory marks this vuln as called, always mark as called
-							isCalledVulnMap[v.ID] = isCalledVulnMap[v.ID] || called
+							isCalledVulnMap[v.GetId()] = isCalledVulnMap[v.GetId()] || called
 						}
 					}
 				}
@@ -221,7 +228,8 @@ func extractRlibArchive(rlibPath string) (bytes.Buffer, error) {
 func rustBuildSource(source models.SourceInfo) ([]string, error) {
 	projectBaseDir := filepath.Dir(source.Path)
 
-	cmd := exec.Command("cargo", "build", "--workspace", "--all-targets", "--release")
+	// TODO: This will be moved to enrichers which does have context.
+	cmd := exec.CommandContext(context.TODO(), "cargo", "build", "--workspace", "--all-targets", "--release")
 	cmd.Env = append(cmd.Environ(), RustFlagsEnv)
 	cmd.Dir = projectBaseDir
 	if errors.Is(cmd.Err, exec.ErrDot) {

@@ -15,7 +15,13 @@ func PrintVerticalResults(vulnResult *models.VulnerabilityResults, outputWriter 
 	// Add a newline to separate results from logs.
 	fmt.Fprintln(outputWriter)
 	outputResult := BuildResults(vulnResult)
+	if outputResult.IsContainerScanning {
+		fmt.Fprintf(outputWriter, "%s:\n", GetContainerScanningHeader(outputResult))
+	}
 	printSummary(outputResult, outputWriter)
+	if outputResult.PkgDeprecatedCount > 0 {
+		printPkgDeprecatedSummary(outputResult, outputWriter)
+	}
 	if outputResult.IsContainerScanning {
 		printBaseImages(outputResult.ImageInfo, outputWriter)
 	}
@@ -31,6 +37,9 @@ func PrintVerticalResults(vulnResult *models.VulnerabilityResults, outputWriter 
 			printVerticalVulnerabilities(source, outputResult.IsContainerScanning, outputWriter, showAllVulns)
 			if outputResult.LicenseSummary.ShowViolations {
 				printVerticalLicenseViolations(source, outputWriter)
+			}
+			if source.PkgDeprecatedCount > 0 {
+				printVerticalPkgDeprecatedSummary(source, outputWriter)
 			}
 			if j < len(ecosystem.Sources)-1 {
 				fmt.Fprintln(outputWriter)
@@ -94,6 +103,21 @@ func printVerticalLicenseViolations(source SourceResult, out io.Writer) {
 			source.Name,
 		),
 	)
+}
+
+func printVerticalPkgDeprecatedSummary(source SourceResult, out io.Writer) {
+	fmt.Fprintf(out, "\n %d %s\n", source.PkgDeprecatedCount, text.FgRed.Sprintf("deprecated packages found:"))
+
+	for _, pkg := range source.Packages {
+		if !pkg.Deprecated {
+			continue
+		}
+
+		fmt.Fprintf(out,
+			"    %s\n",
+			text.FgYellow.Sprintf("%s@%s", pkg.Name, pkg.InstalledVersion),
+		)
+	}
 }
 
 func printBaseImages(imageResult ImageInfo, out io.Writer) {
@@ -213,6 +237,12 @@ func printVerticalVulnerabilitiesForPackages(packages []PackageResult, out io.Wr
 				text.FgCyan.Sprintf("%s:", vulnerability.ID),
 				describe(vulnerability),
 			)
+
+			fmt.Fprintf(out,
+				"      Severity: '%s'; Minimal Fix Version: '%s';\n",
+				vulnerability.SeverityScore,
+				vulnerability.FixedVersion,
+			)
 		}
 	}
 }
@@ -281,14 +311,12 @@ func truncate(str string, limit int) string {
 }
 
 func describe(vulnerability VulnResult) string {
-	description := vulnerability.Description
-	if description == "" {
-		description += "(no details available)"
+	builder := strings.Builder{}
+	if vulnerability.Description == "" {
+		builder.WriteString("(no details available)")
 	} else {
-		description = truncate(vulnerability.Description, 80)
+		builder.WriteString(truncate(vulnerability.Description, 80))
 	}
 
-	description += " (" + OSVBaseVulnerabilityURL + vulnerability.ID + ")"
-
-	return description
+	return builder.String()
 }

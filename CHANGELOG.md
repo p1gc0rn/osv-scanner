@@ -1,3 +1,131 @@
+# v2.3.2
+
+This release includes performance improvements for local scanning, reducing memory usage and avoiding unnecessary advisory loading. It also fixes issues with MCP's get_vulnerability_details tool, git queries in `osv-scanner.json`, and ignore entry tracking, along with documentation updates.
+
+### Fixes:
+
+- [Bug #2415](https://github.com/google/osv-scanner/pull/2415) Add more PURL-to-ecosystem mappings
+- [Bug #2422](https://github.com/google/osv-scanner/pull/2422) MCP error for get_vulnerability_id because type definition is incorrect.
+- [Bug #2460](https://github.com/google/osv-scanner/pull/2460) Enable osv-scanner.json git queries
+- [Bug #2456](https://github.com/google/osv-scanner/pull/2456) Properly track if an ignore entry has been used
+- [Bug #2450](https://github.com/google/osv-scanner/pull/2450) **Performance:** Avoid loading the entire advisory unless it will actually be used
+- [Bug #2445](https://github.com/google/osv-scanner/pull/2445) **Performance:** Don't read the entire zip into memory
+- [Bug #2433](https://github.com/google/osv-scanner/pull/2433) Allow specifying user agent in v2 osvscanner package
+
+### Misc:
+
+- [Misc #2453](https://github.com/google/osv-scanner/pull/2453) Switch from gopkg.in/yaml.v3 to go.yaml.in/yaml/v3
+- [Misc #2447](https://github.com/google/osv-scanner/pull/2447) Include `bun.lock` as a supported lockfile
+- [Misc #2444](https://github.com/google/osv-scanner/pull/2444) Document GoVersionOverride in configuration.md
+
+# v2.3.1
+
+### Features:
+
+- [Feature #2370](https://github.com/google/osv-scanner/pull/2370) Add support for the `packagedeprecation` plugin via the new `--experimental-flag-deprecated-packages` flag. The result is available in all output formats except SPDX.
+
+### Fixes:
+
+- [Bug #2395](https://github.com/google/osv-scanner/pull/2395) Fix license scanning to correctly match new `deps.dev` package names.
+- [Bug #2333](https://github.com/google/osv-scanner/pull/2333) Deduplicate SARIF outputs for GitHub.
+- [Bug #2259](https://github.com/google/osv-scanner/pull/2259) Fix lookup of Go packages with major versions by including the subpath of Go PURLs, preventing false positives.
+
+### Misc:
+
+- Updated Go version to v1.25.5 to support Go reachability analysis for the latest version.
+
+# v2.3.0
+
+This release migrates to the new `osv.dev` and `osv-schema` proto bindings for its internal data models ([#2328](https://github.com/google/osv-scanner/pull/2328)). This is primarily an internal change and should not impact users.
+
+### Features:
+
+- [Feature #2321](https://github.com/google/osv-scanner/pull/2321) Add support for license checks for RubyGems.
+- [Feature #2294](https://github.com/google/osv-scanner/pull/2294) Replace `requirementsenhanceable` extractor with transitive enricher.
+- [Feature #2344](https://github.com/google/osv-scanner/pull/2344) Use `osduplicate` annotators.
+
+### Fixes:
+
+- [Bug #2329](https://github.com/google/osv-scanner/pull/2329) Add `--ignore-scripts` flag to npm lockfile generation.
+- [Bug #2311](https://github.com/google/osv-scanner/pull/2311) Improve logic for `--all-packages` flag.
+- [Bug #2309](https://github.com/google/osv-scanner/pull/2309) Exit with a non-zero code when showing help.
+- [Bug #2316](https://github.com/google/osv-scanner/pull/2316) Pre-commit hook now defaults to scanning current directory instead of failing.
+- [Bug #1507 (osv-scalibr)](https://github.com/google/osv-scalibr/pull/1507) Interpolate Maven projects before extracting repositories.
+
+# v2.2.4
+
+### Features:
+
+- [Feature #2256](https://github.com/google/osv-scanner/pull/2256) Add experimental OSV-Scanner MCP server. (`osv-scanner experimental-mcp`)
+- [Feature #2284](https://github.com/google/osv-scanner/pull/2284) Update `osv-scalibr` integration, replacing `baseimagematch` with the base image enricher.
+- [Feature #2216](https://github.com/google/osv-scanner/pull/2216) Warn when vulnerabilities specified in the ignore config are not found during a scan (fixes \#2206).
+
+### Fixes:
+
+- [Bug #2305](https://github.com/google/osv-scanner/pull/2305) Ignore common protocols and `.git` suffix when checking if an advisory affects a git repository (fixes \#2291).
+- [Bug #2300](https://github.com/google/osv-scanner/pull/2300) Ensure the global logger is used in `cmdlogger` and `osv-scalibr` when set (fixes \#2081).
+- [Bug #2295](https://github.com/google/osv-scanner/pull/2295) Fix Go stdlib license result matching (fixes \#2191).
+
+# v2.2.3
+
+### Features:
+
+- [Feature #2209](https://github.com/google/osv-scanner/pull/2209) Add support for resolving git packages that have a version specified.
+- [Feature #2210](https://github.com/google/osv-scanner/pull/2210) Make the `--experimental-plugins` flag additive by default, and introduce a new `--experimental-no-default-plugins` flag.
+- [Feature #2203](https://github.com/google/osv-scanner/pull/2203) Update `osv-scalibr` to 0.3.4 for improved dependency extraction. See osv-scalibr changelog for additional information.
+
+### Fixes:
+
+- [Bug #2214](https://github.com/google/osv-scanner/pull/2214) Fix issue where `input.Path` was incorrectly constructed on Windows when using the `-L` flag.
+- [Fix #2241](https://github.com/google/osv-scanner/pull/2241) **Performance:** Greatly reduce memory usage in the local matcher by only loading advisories relevant to the packages being scanned.
+
+# v2.2.2
+
+### Features:
+
+- [Feature #2113](https://github.com/google/osv-scanner/pull/2113) Add support for Java reachability analysis to identify uncalled vulnerabilities in JAR files.
+- [Feature #2177](https://github.com/google/osv-scanner/pull/2177) Automatically parse `osv-scanner-custom.json` files as `osv-scanner.json` custom lockfiles.
+
+### Fixes:
+
+- [Bug #2204](https://github.com/google/osv-scanner/pull/2204) Add a warning to guide users to the correct GitHub Action.
+- [Bug #2202](https://github.com/google/osv-scanner/pull/2202) Fix incorrect exit code when unimportant vulnerabilities are found in non-container scans.
+- [Bug #2188](https://github.com/google/osv-scanner/pull/2188) Fix handling of absolute paths on Windows.
+
+# v2.2.1
+
+### Fixes
+
+- [Bug #2151](https://github.com/google/osv-scanner/issues/2151) Filter by ecosystem before querying.
+
+# v2.2.0
+
+OSV-Scanner now supports all OSV-Scalibr features behind experimental flags (`--experimental-plugins`, see details [here](https://google.github.io/osv-scanner/experimental/manual-plugin-selection/))!
+
+### Features:
+
+- [Feature #2146](https://github.com/google/osv-scanner/pull/2146) Allow manual OSV-Scalibr plugin selection.
+- [Feature #2144](https://github.com/google/osv-scanner/pull/2144) Add OSV-Scalibr version to osv-scanner --version output.
+- [Feature #2021](https://github.com/google/osv-scanner/pull/2021) Add experimental support for running OSV-Scalibr detectors.
+- [Feature #2079](https://github.com/google/osv-scanner/pull/2079) Fall back to offline extractor if the transitive one fails, so at least direct dependencies are returned.
+- [Feature #2032](https://github.com/google/osv-scanner/pull/2032) Add summary section at the top of outputs and a 'Fixed Version' column.
+- [Feature #2076](https://github.com/google/osv-scanner/pull/2076) Support Ubuntu severity type.
+
+### Fixes:
+
+- [Bug #2141](https://github.com/google/osv-scanner/pull/2141) Fix OSV-Scanner json scans not matching with correct ecosystem.
+- [Bug #2084](https://github.com/google/osv-scanner/pull/2084) Show absolute paths when scanning containers.
+- [Bug #2126](https://github.com/google/osv-scanner/pull/2126) Log and preserve package count before continuing on db error.
+- [Bug #2095](https://github.com/google/osv-scanner/pull/2095) Pass through plugin capabilities correctly.
+- [Bug #2051](https://github.com/google/osv-scanner/pull/2051) Properly flag if running on Linux or Mac OSs for plugin compatibility.
+- [Bug #2072](https://github.com/google/osv-scanner/pull/2072) Add missing "text" property in description fields.
+- [Bug #2068](https://github.com/google/osv-scanner/pull/2068) Change links in output to go to the specific vulnerability page instead of the list page.
+- [Bug #2064](https://github.com/google/osv-scanner/pull/2064) Fix SARIF v3 output to include results.
+
+### API Changes:
+
+- [API Change #2096](https://github.com/google/osv-scanner/pull/2096) Allow log handler to be overridden.
+
 # v2.1.0
 
 ### Features:

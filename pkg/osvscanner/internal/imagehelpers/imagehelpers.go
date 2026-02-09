@@ -9,56 +9,46 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/google/osv-scalibr/artifact/image/layerscanning/image"
-	"github.com/google/osv-scalibr/extractor/filesystem/os/osrelease"
-	"github.com/google/osv-scanner/v2/internal/clients/clientinterfaces"
 	"github.com/google/osv-scanner/v2/internal/cmdlogger"
+	"github.com/google/osv-scanner/v2/internal/imodels/results"
 	"github.com/google/osv-scanner/v2/pkg/models"
+	"github.com/opencontainers/go-digest"
 )
 
-func BuildImageMetadata(img *image.Image, baseImageMatcher clientinterfaces.BaseImageMatcher) (*models.ImageMetadata, error) {
-	chainLayers, err := img.ChainLayers()
-	if err != nil {
-		// This is very unlikely, as if this would error we would have failed the initial scan
-		return nil, err
-	}
-	m, err := osrelease.GetOSRelease(chainLayers[len(chainLayers)-1].FS())
-	OS := "Unknown"
-	if err == nil {
-		OS = m["PRETTY_NAME"]
+func BuildImageMetadata(scanResults *results.ScanResults) *models.ImageMetadata {
+	if scanResults.ImageMetadata == nil {
+		return nil
 	}
 
-	layerMetadata := []models.LayerMetadata{}
-	for _, cl := range chainLayers {
+	layerMetadata := make([]models.LayerMetadata, 0, len(scanResults.ImageMetadata.GetLayerMetadata()))
+	for _, cl := range scanResults.ImageMetadata.GetLayerMetadata() {
 		layerMetadata = append(layerMetadata, models.LayerMetadata{
-			DiffID:  cl.Layer().DiffID(),
-			Command: cl.Layer().Command(),
-			IsEmpty: cl.Layer().IsEmpty(),
+			DiffID:         digest.Digest(cl.GetDiffId()),
+			Command:        cl.GetCommand(),
+			IsEmpty:        cl.GetIsEmpty(),
+			BaseImageIndex: int(cl.GetBaseImageIndex()),
 		})
 	}
 
-	var baseImages [][]models.BaseImageDetails
+	baseImages := make([][]models.BaseImageDetails, 0, len(scanResults.ImageMetadata.GetBaseImageChains()))
 
-	if baseImageMatcher != nil {
-		baseImages, err = baseImageMatcher.MatchBaseImages(context.Background(), layerMetadata)
-		if err != nil {
-			return nil, fmt.Errorf("failed to query for container base images: %w", err)
+	for _, chain := range scanResults.ImageMetadata.GetBaseImageChains() {
+		baseImageChain := make([]models.BaseImageDetails, 0, len(chain.GetBaseImages()))
+		for _, imgs := range chain.GetBaseImages() {
+			baseImageChain = append(baseImageChain, models.BaseImageDetails{
+				Name: imgs.GetRepository(),
+			})
 		}
-	} else {
-		baseImages = [][]models.BaseImageDetails{
-			// The base image at index 0 is a placeholder representing your image, so always empty
-			// This is the case even if your image is a base image, in that case no layers point to index 0
-			{},
-		}
+		baseImages = append(baseImages, baseImageChain)
 	}
 
 	imgMetadata := models.ImageMetadata{
-		OS:            OS,
+		OS:            scanResults.ImageMetadata.GetOsInfo()["PRETTY_NAME"],
 		LayerMetadata: layerMetadata,
 		BaseImages:    baseImages,
 	}
 
-	return &imgMetadata, nil
+	return &imgMetadata
 }
 
 // ExportDockerImage will execute the docker binary to export an image to a temporary file in the tarball OCI format.
@@ -67,7 +57,7 @@ func BuildImageMetadata(img *image.Image, baseImageMatcher clientinterfaces.Base
 // cleaned automatically by this function.
 //
 // ExportDockerImage will first try to locate the image locally, and if not found, attempt to pull the image from the docker registry.
-func ExportDockerImage(dockerImageName string) (string, error) {
+func ExportDockerImage(ctx context.Context, dockerImageName string) (string, error) {
 	tempImageFile, err := os.CreateTemp("", "docker-image-*.tar")
 	if err != nil {
 		cmdlogger.Errorf("Failed to create temporary file: %s", err)
@@ -83,11 +73,12 @@ func ExportDockerImage(dockerImageName string) (string, error) {
 
 	// Check if image exists locally, if not, pull from the cloud.
 	cmdlogger.Infof("Checking if docker image (%q) exists locally...", dockerImageName)
-	cmd := exec.Command("docker", "images", "-q", dockerImageName)
+	// TODO: Pass through context here.
+	cmd := exec.CommandContext(ctx, "docker", "images", "-q", dockerImageName)
 	output, err := cmd.Output()
 	if err != nil || string(output) == "" {
 		cmdlogger.Infof("Image not found locally, pulling docker image (%q)...", dockerImageName)
-		err = runCommandLogError("docker", "pull", "-q", dockerImageName)
+		err = runCommandLogError(ctx, "docker", "pull", "-q", dockerImageName)
 		if err != nil {
 			_ = os.RemoveAll(tempImageFile.Name())
 
@@ -96,7 +87,7 @@ func ExportDockerImage(dockerImageName string) (string, error) {
 	}
 
 	cmdlogger.Infof("Saving docker image (%q) to temporary file...", dockerImageName)
-	err = runCommandLogError("docker", "save", "-o", tempImageFile.Name(), dockerImageName)
+	err = runCommandLogError(ctx, "docker", "save", "-o", tempImageFile.Name(), dockerImageName)
 	if err != nil {
 		_ = os.RemoveAll(tempImageFile.Name())
 
@@ -106,8 +97,8 @@ func ExportDockerImage(dockerImageName string) (string, error) {
 	return tempImageFile.Name(), nil
 }
 
-func runCommandLogError(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
+func runCommandLogError(ctx context.Context, name string, args ...string) error {
+	cmd := exec.CommandContext(ctx, name, args...)
 
 	// Get stderr for debugging when docker fails
 	stderr, err := cmd.StderrPipe()

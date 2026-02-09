@@ -27,7 +27,7 @@ func checkResult(t *testing.T, result *resolution.Result) {
 	minVulns := make([]minimalVuln, len(result.Vulns))
 	for i, v := range result.Vulns {
 		minVulns[i] = minimalVuln{
-			ID:        v.OSV.ID,
+			ID:        v.OSV.GetId(),
 			DevOnly:   v.DevOnly,
 			Subgraphs: v.Subgraphs,
 		}
@@ -60,6 +60,7 @@ func TestResolve(t *testing.T) {
 		version      string
 		system       resolve.System
 		universe     string
+		vulns        string
 		requirements []requirement
 		opts         resolution.ResolveOpts
 	}{
@@ -67,7 +68,8 @@ func TestResolve(t *testing.T) {
 			name:     "simple", // simple root -> dependency -> vuln
 			version:  "1.0.0",
 			system:   resolve.NPM,
-			universe: "./fixtures/basic-universe.yaml",
+			universe: "./testdata/basic-universe.yaml",
+			vulns:    "./testdata/basic-vulns.json",
 			requirements: []requirement{
 				{
 					name:    "dependency",
@@ -80,7 +82,8 @@ func TestResolve(t *testing.T) {
 			name:     "direct", // vulnerability in direct dependency
 			version:  "1.0.0",
 			system:   resolve.NPM,
-			universe: "./fixtures/basic-universe.yaml",
+			universe: "./testdata/basic-universe.yaml",
+			vulns:    "./testdata/basic-vulns.json",
 			requirements: []requirement{
 				{
 					name:    "bad",
@@ -92,7 +95,8 @@ func TestResolve(t *testing.T) {
 			name:     "duplicates", // same package with vulns included multiple times
 			version:  "1.1.1",
 			system:   resolve.NPM,
-			universe: "./fixtures/basic-universe.yaml",
+			universe: "./testdata/basic-universe.yaml",
+			vulns:    "./testdata/basic-vulns.json",
 			requirements: []requirement{
 				{
 					name:    "bad",
@@ -115,7 +119,8 @@ func TestResolve(t *testing.T) {
 			name:     "different-pkgs", // same vuln in two different packages
 			version:  "3.0.0",
 			system:   resolve.NPM,
-			universe: "./fixtures/basic-universe.yaml",
+			universe: "./testdata/basic-universe.yaml",
+			vulns:    "./testdata/basic-vulns.json",
 			requirements: []requirement{
 				{
 					name:    "bad2",
@@ -131,7 +136,8 @@ func TestResolve(t *testing.T) {
 			name:     "existing", // manifest package/version exists in universe already
 			version:  "1.0.0",
 			system:   resolve.NPM,
-			universe: "./fixtures/basic-universe.yaml",
+			universe: "./testdata/basic-universe.yaml",
+			vulns:    "./testdata/basic-vulns.json",
 			requirements: []requirement{
 				{
 					name:    "dependency",
@@ -144,7 +150,8 @@ func TestResolve(t *testing.T) {
 			name:     "non-problem", // non-problem chains
 			version:  "1.0.0",
 			system:   resolve.NPM,
-			universe: "./fixtures/basic-universe.yaml",
+			universe: "./testdata/basic-universe.yaml",
+			vulns:    "./testdata/basic-vulns.json",
 			requirements: []requirement{
 				{
 					name:    "bad",
@@ -160,7 +167,8 @@ func TestResolve(t *testing.T) {
 			name:     "diamond", // diamond dependency on vulnerable pkg
 			version:  "1.0.0",
 			system:   resolve.NPM,
-			universe: "./fixtures/diamond-universe.yaml",
+			universe: "./testdata/diamond-universe.yaml",
+			vulns:    "./testdata/diamond-vulns.json",
 			requirements: []requirement{
 				{
 					name:    "pkg",
@@ -177,7 +185,8 @@ func TestResolve(t *testing.T) {
 			name:     "complex", // more complex graph/vulnerability structure
 			version:  "9.9.9",
 			system:   resolve.NPM,
-			universe: "./fixtures/complex-universe.yaml",
+			universe: "./testdata/complex-universe.yaml",
+			vulns:    "./testdata/complex-vulns.json",
 			requirements: []requirement{
 				{
 					name:    "alice",
@@ -200,7 +209,7 @@ func TestResolve(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			cl := clienttest.NewMockResolutionClient(t, tt.universe)
+			cl := clienttest.NewMockResolutionClient(t, tt.universe, tt.vulns)
 			var m manifest.Manifest
 			m.Root = resolve.Version{
 				VersionKey: resolve.VersionKey{

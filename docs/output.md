@@ -180,7 +180,7 @@ osv-scanner scan --format json -L path/to/lockfile > /path/to/file.json
           "groups": [
             {
               "ids": ["GHSA-c3h9-896r-86jm", "GO-2021-0053"],
-              // Call stack analysis is done using the `--experimental-call-analysis` flag
+              // Call stack analysis is done using the `--call-analysis=<lang>` flag
               // and result is matched against data provided by the advisory to check if
               // affected code is actually being executed.
               "experimentalAnalysis": {
@@ -239,7 +239,8 @@ osv-scanner scan --format json -L path/to/lockfile > /path/to/file.json
 osv-scanner scan --format sarif your/project/dir
 ```
 
-Outputs the result in the [SARIF](https://sarifweb.azurewebsites.net/) v2.1.0 format. Each vulnerability (grouped by aliases) is a separate rule, and each package containing a vulnerable dependency is a rule violation. The help text within the SARIF report contains detailed information about the vulnerability and remediation instructions for how to resolve it.
+Outputs the result in the [SARIF](https://sarifweb.azurewebsites.net/) v2.1.0 format. Each vulnerability (grouped by aliases) is a separate rule, and each package containing a vulnerable dependency is a rule violation.
+The help text within the SARIF report contains detailed information about the vulnerability and remediation instructions for how to resolve it.
 
 <details markdown="1">
 <summary><b>Sample SARIF output</b></summary>
@@ -385,9 +386,223 @@ Outputs the result in the [SARIF](https://sarifweb.azurewebsites.net/) v2.1.0 fo
 
 ---
 
+### SPDX
+
+```bash
+osv-scanner scan --format spdx-2-3 --all-packages your/project/dir
+```
+
+Outputs the result in the [SPDX](https://spdx.dev/) v2.3 format. This matches OSV-Scalibr's SPDX output format.
+
+{: .note }
+SPDX only supports listing the packages found, and does not include vulnerability information.
+However, `osv-scanner` will still exit with a non-zero exit code (`1`) if any vulnerabilities are found.
+
+<details markdown="1">
+<summary><b>Sample SPDX output</b></summary>
+
+```json
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "SCALIBR-generated SPDX",
+  "documentNamespace": "https://spdx.google/uuid-placeholder-0",
+  "creationInfo": {
+    "creators": ["Tool: SCALIBR"],
+    "created": "2025-08-11T02:58:42Z"
+  },
+  "packages": [
+    {
+      "name": "main",
+      "SPDXID": "SPDXRef-Package-main-uuid-placeholder-1",
+      "versionInfo": "0",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false
+    },
+    {
+      "name": "has-flag",
+      "SPDXID": "SPDXRef-Package-has-flag-uuid-placeholder-2",
+      "versionInfo": "4.0.0",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "sourceInfo": "Identified by the javascript/bunlock extractor from /path/to/bun.lock",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/has-flag@4.0.0"
+        }
+      ]
+    },
+    {
+      "name": "wrappy",
+      "SPDXID": "SPDXRef-Package-wrappy-uuid-placeholder-3",
+      "versionInfo": "1.0.2",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "sourceInfo": "Identified by the javascript/bunlock extractor from /path/to/bun.lock",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/wrappy@1.0.2"
+        }
+      ]
+    },
+    {
+      "name": "league/flysystem",
+      "SPDXID": "SPDXRef-Package-league-flysystem-uuid-placeholder-4",
+      "versionInfo": "1.0.8",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "sourceInfo": "Identified by the php/composerlock extractor from /path/to/composer.lock",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:composer/league%2Fflysystem@1.0.8"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-Package-main-uuid-placeholder-1",
+      "relationshipType": "DESCRIBES"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-main-uuid-placeholder-1",
+      "relatedSpdxElement": "SPDXRef-Package-has-flag-uuid-placeholder-2",
+      "relationshipType": "CONTAINS"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-has-flag-uuid-placeholder-2",
+      "relatedSpdxElement": "NOASSERTION",
+      "relationshipType": "CONTAINS"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-main-uuid-placeholder-1",
+      "relatedSpdxElement": "SPDXRef-Package-wrappy-uuid-placeholder-3",
+      "relationshipType": "CONTAINS"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-wrappy-uuid-placeholder-3",
+      "relatedSpdxElement": "NOASSERTION",
+      "relationshipType": "CONTAINS"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-main-uuid-placeholder-1",
+      "relatedSpdxElement": "SPDXRef-Package-league-flysystem-uuid-placeholder-4",
+      "relationshipType": "CONTAINS"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-league-flysystem-uuid-placeholder-4",
+      "relatedSpdxElement": "NOASSERTION",
+      "relationshipType": "CONTAINS"
+    }
+  ]
+}
+```
+
+</details>
+
+---
+
+### CycloneDX
+
+```bash
+osv-scanner scan --format cyclonedx-1-5 --all-packages your/project/dir
+```
+
+Outputs the result in the [CycloneDX](https://cyclonedx.org/) format.
+
+You can also specify cyclonedx 1.4 using `--format cyclonedx-1.4`.
+
+<details markdown="1">
+<summary><b>Sample CycloneDX output</b></summary>
+
+```json
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "components": [
+    {
+      "bom-ref": "pkg:composer/league/flysystem@1.0.8",
+      "type": "library",
+      "name": "league/flysystem",
+      "version": "1.0.8",
+      "licenses": [],
+      "purl": "pkg:composer/league/flysystem@1.0.8"
+    },
+    {
+      "bom-ref": "pkg:npm/has-flag@4.0.0",
+      "type": "library",
+      "name": "has-flag",
+      "version": "4.0.0",
+      "licenses": [],
+      "purl": "pkg:npm/has-flag@4.0.0"
+    },
+    {
+      "bom-ref": "pkg:npm/wrappy@1.0.2",
+      "type": "library",
+      "name": "wrappy",
+      "version": "1.0.2",
+      "licenses": [],
+      "purl": "pkg:npm/wrappy@1.0.2"
+    }
+  ],
+  "vulnerabilities": [
+    {
+      "id": "GHSA-9f46-5r25-5wfm",
+      "references": [
+        {
+          "id": "CVE-2021-32708",
+          "source": {}
+        }
+      ],
+      "ratings": [
+        {
+          "method": "CVSSv3",
+          "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        }
+      ],
+      "description": "Time-of-check Time-of-use (TOCTOU) Race Condition in league/flysystem",
+      "detail": "### Impact\n\nThe whitespace normalisation using in 1.x and 2.x removes any unicode whitespace. Under certain specific conditions this could potentially allow a malicious user to execute code remotely.\n\nThe conditions: \n\n- A user is allowed to supply the path or filename of an uploaded file.\n- The supplied path or filename is not checked against unicode chars.\n- The supplied pathname checked against an extension deny-list, not an allow-list.\n- The supplied path or filename contains a unicode whitespace char in the extension.\n- The uploaded file is stored in a directory that allows PHP code to be executed.\n\nGiven these conditions are met a user can upload and execute arbitrary code on the system under attack.\n\n### Patches\n\nThe unicode whitespace removal has been replaced with a rejection (exception).\n\nThe library has been patched in:\n- 1.x: https://github.com/thephpleague/flysystem/commit/f3ad69181b8afed2c9edf7be5a2918144ff4ea32\n- 2.x: https://github.com/thephpleague/flysystem/commit/a3c694de9f7e844b76f9d1b61296ebf6e8d89d74\n\n### Workarounds\n\nFor 1.x users, upgrade to 1.1.4. For 2.x users, upgrade to 2.1.1.\n",
+      "advisories": [
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-32708"
+        }
+      ],
+      "published": "2021-06-29T03:13:28Z",
+      "updated": "2024-02-16T08:21:35Z",
+      "credits": {
+        "organizations": []
+      },
+      "affects": [
+        {
+          "ref": "pkg:composer/league/flysystem"
+        }
+      ]
+    }
+  ]
+}
+```
+
+</details>
+
+---
+
 ## Call analysis
 
-With `--call-analysis` flag enabled, call information will be included in the output.
+With `--call-analysis=<lang>` flag enabled, call information will be included in the output. See [Scanning with call analysis](./scan-source.md#scanning-with-call-analysis) for more details on how to enable call analysis.
 
 ### Table
 
@@ -396,7 +611,7 @@ affects code called by your project, and vulnerabilities that only affect code p
 your code.
 
 ```bash
-osv-scanner scan --format table --call-analysis your/project/dir
+osv-scanner scan --format table --call-analysis=rust your/project/dir
 ```
 
 <details markdown="1">
@@ -425,7 +640,7 @@ osv-scanner scan --format table --call-analysis your/project/dir
 The JSON output will include analysis results for each vulnerability group.
 
 ```bash
-osv-scanner scan --format json --call-analysis -L path/to/lockfile > /path/to/file.json
+osv-scanner scan --format json --call-analysis=rust -L path/to/lockfile > /path/to/file.json
 ```
 
 <details markdown="1">
@@ -536,11 +751,11 @@ osv-scanner scan --format json --call-analysis -L path/to/lockfile > /path/to/fi
 
 ## Return Codes
 
-| Exit Code | Reason                                                                                     |
-| :-------: | ------------------------------------------------------------------------------------------ |
-|    `0`    | Packages were found when scanning, but does not match any known vulnerabilities.           |
-|    `1`    | Packages were found when scanning, and there are vulnerabilities.                          |
-|  `1-126`  | Reserved for vulnerability result related errors.                                          |
-|   `127`   | General Error.                                                                             |
-|   `128`   | No packages found (likely caused by the scanning format not picking up any files to scan). |
-| `129-255` | Reserved for non result related errors.                                                    |
+| Exit Code | Reason                                                                                       |
+| :-------: | -------------------------------------------------------------------------------------------- |
+|    `0`    | Packages were found when scanning, but does not match any known vulnerabilities or findings. |
+|    `1`    | Packages were found when scanning, and there are vulnerabilities or findings.                |
+|  `1-126`  | Reserved for vulnerability result related errors.                                            |
+|   `127`   | General Error.                                                                               |
+|   `128`   | No packages found (likely caused by the scanning format not picking up any files to scan).   |
+| `129-255` | Reserved for non result related errors.                                                      |

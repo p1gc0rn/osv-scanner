@@ -6,17 +6,19 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/google/osv-scanner/v2/cmd/osv-scanner/internal/helper"
 	"github.com/google/osv-scanner/v2/internal/cmdlogger"
+	"github.com/google/osv-scanner/v2/internal/version"
 	"github.com/google/osv-scanner/v2/pkg/models"
 	"github.com/google/osv-scanner/v2/pkg/osvscanner"
 	"github.com/urfave/cli/v3"
 )
 
-func Command(stdout, stderr io.Writer) *cli.Command {
+func Command(stdout, stderr io.Writer, client *http.Client) *cli.Command {
 	return &cli.Command{
 		Name:        "source",
 		Usage:       "scans a source project's dependencies for known vulnerabilities using the OSV database.",
@@ -50,14 +52,6 @@ func Command(stdout, stderr io.Writer) *cli.Command {
 				Usage: "also scan files that would be ignored by .gitignore",
 				Value: false,
 			},
-			&cli.StringSliceFlag{
-				Name:  "call-analysis",
-				Usage: "attempt call analysis on code to detect only active vulnerabilities",
-			},
-			&cli.StringSliceFlag{
-				Name:  "no-call-analysis",
-				Usage: "disables call graph analysis",
-			},
 			&cli.BoolFlag{
 				Name:  "include-git-root",
 				Usage: "include scanning git root (non-submoduled) repositories",
@@ -82,12 +76,12 @@ func Command(stdout, stderr io.Writer) *cli.Command {
 		}, helper.BuildCommonScanFlags([]string{"lockfile", "sbom", "directory"})...),
 		ArgsUsage: "[directory1 directory2...]",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			return action(ctx, cmd, stdout, stderr)
+			return action(ctx, cmd, stdout, stderr, client)
 		},
 	}
 }
 
-func action(_ context.Context, cmd *cli.Command, stdout, stderr io.Writer) error {
+func action(_ context.Context, cmd *cli.Command, stdout, stderr io.Writer, client *http.Client) error {
 	format := cmd.String("format")
 
 	outputPath := cmd.String("output")
@@ -113,11 +107,10 @@ func action(_ context.Context, cmd *cli.Command, stdout, stderr io.Writer) error
 		return err
 	}
 
-	callAnalysisStates := helper.CreateCallAnalysisStates(cmd.StringSlice("call-analysis"), cmd.StringSlice("no-call-analysis"))
-
-	experimentalScannerActions := helper.GetExperimentalScannerActions(cmd)
+	experimentalScannerActions := helper.GetExperimentalScannerActions(cmd, client)
+	experimentalScannerActions.RequestUserAgent = "osv-scanner_scan-source/" + version.OSVVersion
 	// Add `source` specific experimental configs
-	experimentalScannerActions.TransitiveScanningActions = osvscanner.TransitiveScanningActions{
+	experimentalScannerActions.TransitiveScanning = osvscanner.TransitiveScanningActions{
 		Disabled:         cmd.Bool("no-resolve"),
 		NativeDataSource: cmd.String("data-source") == "native",
 		MavenRegistry:    cmd.String("maven-registry"),
@@ -131,12 +124,7 @@ func action(_ context.Context, cmd *cli.Command, stdout, stderr io.Writer) error
 	scannerAction.Recursive = cmd.Bool("recursive")
 	scannerAction.NoIgnore = cmd.Bool("no-ignore")
 	scannerAction.DirectoryPaths = cmd.Args().Slice()
-	scannerAction.CallAnalysisStates = callAnalysisStates
 	scannerAction.ExperimentalScannerActions = experimentalScannerActions
-
-	if len(experimentalScannerActions.Extractors) == 0 {
-		return errors.New("at least one extractor must be enabled")
-	}
 
 	var vulnResult models.VulnerabilityResults
 	//nolint:contextcheck // passing the context in would be a breaking change

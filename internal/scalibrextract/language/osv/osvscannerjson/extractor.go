@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 
+	cpb "github.com/google/osv-scalibr/binary/proto/config_go_proto"
 	"github.com/google/osv-scalibr/extractor"
 	"github.com/google/osv-scalibr/extractor/filesystem"
 	"github.com/google/osv-scalibr/inventory"
 	"github.com/google/osv-scalibr/plugin"
-	"github.com/google/osv-scalibr/purl"
 	"github.com/google/osv-scanner/v2/pkg/models"
 )
 
@@ -33,9 +34,14 @@ func (e Extractor) Requirements() *plugin.Capabilities {
 	return &plugin.Capabilities{}
 }
 
-// FileRequired never returns true, as this is for the osv-scanner json output.
-func (e Extractor) FileRequired(_ filesystem.FileAPI) bool {
-	return false
+func New(_ *cpb.PluginConfig) (filesystem.Extractor, error) {
+	return Extractor{}, nil
+}
+
+// FileRequired returns true only for osv-scanner-custom.json files,
+// since this is specific to the osv-scanner JSON output
+func (e Extractor) FileRequired(fapi filesystem.FileAPI) bool {
+	return filepath.Base(fapi.Path()) == "osv-scanner-custom.json"
 }
 
 // Extract extracts packages from yarn.lock files passed through the scan input.
@@ -53,11 +59,13 @@ func (e Extractor) Extract(_ context.Context, input *filesystem.ScanInput) (inve
 			inv := extractor.Package{
 				Name:    pkg.Package.Name,
 				Version: pkg.Package.Version,
-				Metadata: Metadata{
+				Metadata: &Metadata{
 					Ecosystem:  pkg.Package.Ecosystem,
 					SourceInfo: res.Source,
 				},
+				PURLType:  "placeholder",
 				Locations: []string{input.Path},
+				Plugins:   []string{"osv/osvscannerjson"},
 			}
 			if pkg.Package.Commit != "" {
 				inv.SourceCode = &extractor.SourceCodeIdentifier{
@@ -72,20 +80,6 @@ func (e Extractor) Extract(_ context.Context, input *filesystem.ScanInput) (inve
 	return inventory.Inventory{
 		Packages: packages,
 	}, nil
-}
-
-// ToPURL converts an inventory created by this extractor into a PURL.
-func (e Extractor) ToPURL(_ *extractor.Package) *purl.PackageURL {
-	// TODO: support purl conversion
-	return nil
-}
-
-// ToCPEs is not applicable as this extractor does not infer CPEs from the Package.
-func (e Extractor) ToCPEs(_ *extractor.Package) []string { return []string{} }
-
-// Ecosystem returns the OSV ecosystem ('npm') of the software extracted by this extractor.
-func (e Extractor) Ecosystem(i *extractor.Package) string {
-	return i.Metadata.(Metadata).Ecosystem
 }
 
 var _ filesystem.Extractor = Extractor{}

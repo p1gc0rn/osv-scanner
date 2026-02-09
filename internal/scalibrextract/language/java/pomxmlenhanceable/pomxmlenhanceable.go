@@ -4,11 +4,13 @@ package pomxmlenhanceable
 import (
 	"context"
 
+	cpb "github.com/google/osv-scalibr/binary/proto/config_go_proto"
 	"github.com/google/osv-scalibr/extractor/filesystem"
 	"github.com/google/osv-scalibr/extractor/filesystem/language/java/pomxml"
 	"github.com/google/osv-scalibr/extractor/filesystem/language/java/pomxmlnet"
 	"github.com/google/osv-scalibr/inventory"
 	"github.com/google/osv-scalibr/plugin"
+	"github.com/google/osv-scanner/v2/internal/cmdlogger"
 )
 
 const (
@@ -23,9 +25,9 @@ type Extractor struct {
 }
 
 // New returns a new instance of the extractor.
-func New() filesystem.Extractor {
-	base := pomxml.New()
-	return &Extractor{offline: base, online: base}
+func New(config *cpb.PluginConfig) (filesystem.Extractor, error) {
+	base, err := pomxml.New(config)
+	return &Extractor{offline: base, online: base}, err
 }
 
 // Name of the extractor
@@ -59,6 +61,9 @@ func (e *Extractor) Extract(ctx context.Context, input *filesystem.ScanInput) (i
 		return inv, err
 	}
 
+	cmdlogger.Warnf(
+		"failed to resolve transitive dependencies for %q, falling back to offline extraction: %s", input.Path, err.Error())
+
 	// Fallback to the base extractor if the enhanced extraction failed.
 	f, err := input.FS.Open(input.Path)
 	if err != nil {
@@ -73,23 +78,26 @@ func (e *Extractor) Extract(ctx context.Context, input *filesystem.ScanInput) (i
 var _ filesystem.Extractor = &Extractor{}
 
 type enhanceable interface {
-	Enhance(config pomxmlnet.Config)
+	Enhance(config *cpb.PluginConfig) error
 }
 
 // Enhance uses the given config to improve the abilities of this extractor,
 // at the cost of additional requirements such as networking and direct fs access
-func (e *Extractor) Enhance(config pomxmlnet.Config) {
-	e.online = pomxmlnet.New(config)
+func (e *Extractor) Enhance(config *cpb.PluginConfig) (err error) {
+	e.online, err = pomxmlnet.New(config)
+	return
 }
 
 var _ enhanceable = &Extractor{}
 
 // EnhanceIfPossible calls Extractor.Enhance with the given config if the
-// provided extractor is an Extractor
-func EnhanceIfPossible(extractor filesystem.Extractor, config pomxmlnet.Config) {
-	us, ok := extractor.(enhanceable)
+// provided plug(in) is an Extractor
+func EnhanceIfPossible(plug plugin.Plugin, config *cpb.PluginConfig) error {
+	us, ok := plug.(enhanceable)
 
 	if ok {
-		us.Enhance(config)
+		return us.Enhance(config)
 	}
+
+	return nil
 }
